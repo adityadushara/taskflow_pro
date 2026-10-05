@@ -128,9 +128,9 @@ export default function LoginPage() {
 
         <div className="flex items-center justify-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-100">
-            T
+            H
           </div>
-          <span className="text-2xl font-bold tracking-tight text-slate-900">TaskFlow Pro</span>
+          <span className="text-2xl font-bold tracking-tight text-slate-900">Hairdrama Task Manager</span>
         </div>
 
         <h2 className="mt-6 text-center text-2xl font-bold tracking-tight text-slate-900">

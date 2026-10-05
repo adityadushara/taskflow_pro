@@ -9,10 +9,10 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm shadow-indigo-200">
-              T
+              H
             </div>
             <span className="font-semibold text-lg tracking-tight text-slate-900">
-              TaskFlow Pro
+              Hairdrama Task Manager
             </span>
           </div>
 
@@ -105,7 +105,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div>TaskFlow Pro • Full-Stack Task Management Platform</div>
+          <div>Hairdrama Task Manager Web • Collaborative Platform</div>
           <div className="flex items-center gap-4">
             <span>Next.js 16</span>
             <span>•</span>

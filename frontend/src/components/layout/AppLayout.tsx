@@ -47,9 +47,9 @@ export function AppLayout({ children, onSearchChange, searchValue = '' }: AppLay
       <header className="md:hidden flex items-center justify-between px-4 h-16 bg-white border-b border-slate-200 sticky top-0 z-40">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-            T
+            H
           </div>
-          <span className="font-bold text-base text-slate-900">TaskFlow Pro</span>
+          <span className="font-bold text-base text-slate-900">Hairdrama Task Manager</span>
         </Link>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -69,11 +69,11 @@ export function AppLayout({ children, onSearchChange, searchValue = '' }: AppLay
           {/* Logo Brand Header */}
           <div className="h-16 px-6 flex items-center gap-2.5 border-b border-slate-100">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm shadow-indigo-200">
-              T
+              H
             </div>
             <div>
-              <span className="font-bold text-base tracking-tight text-slate-900 block leading-tight">
-                TaskFlow Pro
+              <span className="font-bold text-sm tracking-tight text-slate-900 block leading-tight">
+                Hairdrama Task Manager
               </span>
               <span className="text-[10px] text-slate-400 font-medium block">
                 Flask & Supabase Tier

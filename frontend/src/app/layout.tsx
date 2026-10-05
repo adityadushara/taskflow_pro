@@ -6,9 +6,9 @@ import { AuthProvider } from '@/lib/auth-context';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'TaskFlow Pro — Production Collaborative Task Management',
+  title: 'Hairdrama Task Manager Web — Collaborative Task Management',
   description:
-    'High-performance full-stack task management application with Google OAuth, Flask REST backend, real-time activity auditing, and team delegation.',
+    'Full-stack task management platform for Hairdrama with Google OAuth, Flask REST backend, real-time activity auditing, and team delegation.',
 };
 
 export default function RootLayout({
