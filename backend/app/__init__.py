@@ -21,8 +21,10 @@ def create_app(config_class=Config):
     # Register blueprints
     from app.routes.health import health_bp
     from app.routes.users import users_bp
+    from app.routes.tasks import tasks_bp
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(users_bp, url_prefix="/api")
+    app.register_blueprint(tasks_bp, url_prefix="/api")
 
     # Centralized Error Handlers
     @app.errorhandler(400)
