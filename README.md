@@ -4,7 +4,7 @@ A production-grade, enterprise-ready collaborative Task Management Application b
 
 ---
 
-## Architecture Overview
+## 1. Architecture Overview
 
 ```mermaid
 graph TD
@@ -18,14 +18,14 @@ graph TD
 
     subgraph Backend [Flask REST API]
         AuthMiddleware[Auth Middleware / JWT Validator]
-        TaskService[Task Service & Business Logic]
-        UserService[User Service]
+        TaskService[Task Service & RBAC]
+        UserService[User Profile Service]
         EmailService[Email Service Abstraction]
     end
 
-    subgraph Database [Supabase Platform]
+    subgraph Database [Supabase PostgreSQL + Auth]
         SupaAuth[Supabase Auth / Google OAuth]
-        Postgres[(PostgreSQL Database + RLS)]
+        Postgres[(PostgreSQL 15+ & RLS)]
     end
 
     Browser -->|1. Sign in with Google| SupaAuth
@@ -38,7 +38,7 @@ graph TD
     TaskService -->|8. Trigger Notifications| EmailService
 ```
 
-### Core Architecture Principles
+### Core Architectural Decisions
 1. **Frontend Role**: Next.js App Router serves as the presentation and routing tier. It handles authentication sessions, forms, responsive UI states, and calls the Flask backend. It does **not** bypass the backend to perform raw business mutations.
 2. **Backend Authority**: The Flask REST API owns all business rules, task mutations, team assignments, validation, authorization checks, audit activity logging, and notification dispatch.
 3. **Decoupled Security**:
@@ -48,43 +48,45 @@ graph TD
 
 ---
 
-## Tech Stack
+## 2. Tech Stack
 
 | Tier | Technologies |
 |---|---|
-| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Lucide React, `@supabase/supabase-js` |
-| **Backend** | Python 3.12, Flask 3.1, Flask-CORS, `supabase-py`, `gotrue`, `python-dotenv`, Pytest |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Lucide React, `@supabase/supabase-js`, `@supabase/ssr` |
+| **Backend** | Python 3.12, Flask 3.1, Flask-CORS, Gunicorn, `supabase-py`, `gotrue`, `python-dotenv`, Pytest |
 | **Database & Auth** | Supabase PostgreSQL, Row Level Security (RLS), Google OAuth via Supabase Auth |
 | **Email Architecture** | Provider-agnostic abstraction (`EmailService`) with support for Resend, Gmail API, or Mock mode |
+| **Deployment** | Vercel (Frontend), Render / Railway (Backend), Supabase (Database & Auth) |
 
 ---
 
-## Project Structure
+## 3. Project Structure
 
 ```text
 TASK MANAGEMENT APP/
 ├── .env.example              # Documented environment template for root & services
 ├── .gitignore                 # Universal ignore rules (Next.js, Python, secrets)
 ├── README.md                  # System documentation and execution guide
+├── render.yaml                # Declarative Render Blueprint for backend deployment
 │
 ├── frontend/                  # Next.js App Router Frontend
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── page.tsx       # Landing & welcome interface
+│   │   │   ├── layout.tsx     # Root layout with AuthProvider & metadata
 │   │   │   ├── login/         # Google OAuth login screen
 │   │   │   ├── auth/callback/ # Supabase OAuth redirect handler
-│   │   │   ├── dashboard/     # Metrics, tasks due soon, recent activity
+│   │   │   ├── dashboard/     # Summary metrics, tasks due soon, task list
 │   │   │   └── tasks/
-│   │   │       ├── new/       # Task creation form
-│   │   │       └── [id]/      # Task details, status change & audit timeline
+│   │   │       ├── new/       # Task creation form with user picker
+│   │   │       └── [id]/      # Task details, inline edit, status toggle, activity log
 │   │   ├── components/
-│   │   │   ├── layout/        # Sidebar, topbar, navigation
-│   │   │   ├── tasks/         # Task cards, badges, filter controls
-│   │   │   ├── dashboard/     # Summary metrics, recent lists
-│   │   │   └── ui/            # Buttons, dialogs, badges, inputs
+│   │   │   ├── layout/        # Responsive AppLayout, Sidebar, Navbar
+│   │   │   ├── ui/            # StatusBadge, PriorityBadge, ConfirmationModal
 │   │   ├── lib/
 │   │   │   ├── supabase.ts    # Browser Supabase client
-│   │   │   └── api.ts         # Authenticated fetch wrapper with Bearer JWT
+│   │   │   ├── auth-context.tsx # Auth provider & useAuth hook
+│   │   │   └── api.ts         # Authenticated fetch client forwarding Bearer token
 │   │   └── types/
 │   │       └── index.ts       # Shared TypeScript schemas & API types
 │   ├── package.json
@@ -96,35 +98,39 @@ TASK MANAGEMENT APP/
 │   │   ├── __init__.py        # App factory, CORS & centralized error handlers
 │   │   ├── config.py          # Configuration parser & validator
 │   │   ├── middleware/
-│   │   │   └── auth.py        # Supabase JWT authentication decorator
+│   │   │   └── auth.py        # Supabase JWT authentication decorator (@require_auth)
 │   │   ├── routes/
 │   │   │   ├── health.py      # /api/health endpoint
-│   │   │   ├── users.py       # /api/users & user search
-│   │   │   └── tasks.py       # Task CRUD, complete, activity routes
+│   │   │   ├── users.py       # /api/me, /api/users, /api/users/search
+│   │   │   └── tasks.py       # Task CRUD, complete, delete, activity routes
 │   │   ├── services/
-│   │   │   ├── task_service.py   # Task business logic & authorization
+│   │   │   ├── task_service.py   # Task business logic & RBAC authorization
 │   │   │   ├── user_service.py   # Profile synchronization & lookup
 │   │   │   └── email_service.py  # Decoupled notification dispatcher
 │   │   └── utils/
-│   │       └── responses.py   # Standard success/error JSON response envelopes
+│   │       ├── responses.py   # Standard success/error JSON response envelopes
+│   │       └── supabase_client.py # Singleton Supabase client
 │   ├── tests/
 │   │   ├── __init__.py
-│   │   └── test_health.py     # Endpoint and logic test suites
+│   │   ├── test_health.py     # Health endpoint verification
+│   │   ├── test_auth_and_users.py # Auth failure & user sync tests
+│   │   └── test_tasks_and_authorization.py # RBAC, CRUD & validation test suite
 │   ├── requirements.txt       # Python package dependencies
 │   ├── run.py                 # Development server entry point
+│   ├── Procfile               # Production WSGI entry point
 │   └── .env.example
 │
 └── migrations/                # Version-controlled SQL database schema
     ├── README.md              # Migration execution guide
     ├── 001_initial_schema.sql # Profiles & tasks tables
-    ├── 002_add_indexes.sql    # Performance indexes
+    ├── 002_add_indexes.sql    # Performance B-Tree indexes
     ├── 003_add_task_activity.sql # Audit activity tracking
-    └── 004_rls_policies.sql   # Supabase Row Level Security rules
+    └── 004_rls_and_triggers.sql # Row Level Security policies & auth trigger
 ```
 
 ---
 
-## Authentication Flow
+## 4. Authentication Flow
 
 ```mermaid
 sequenceDiagram
@@ -150,7 +156,7 @@ sequenceDiagram
 
 ---
 
-## API Documentation
+## 5. API Documentation
 
 All API responses follow a consistent JSON envelope:
 
@@ -174,25 +180,154 @@ All API responses follow a consistent JSON envelope:
 }
 ```
 
-### Endpoints Overview
+### Endpoints Specification
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/health` | Public | Service health verification (`{"status": "ok"}`) |
-| `GET` | `/api/me` | Bearer Token | Returns the authenticated user's profile |
-| `GET` | `/api/users` | Bearer Token | Lists registered users eligible for assignment |
-| `GET` | `/api/users/search?q=` | Bearer Token | Searches users by name or email |
-| `GET` | `/api/tasks` | Bearer Token | Lists tasks (supports `status`, `priority`, `assigned_to`, `created_by`, `search`, `sort`, `page`, `limit`) |
-| `POST` | `/api/tasks` | Bearer Token | Creates a new task (`created_by` derived from token) |
-| `GET` | `/api/tasks/<task_id>` | Bearer Token | Returns single task details and activity |
-| `PATCH` | `/api/tasks/<task_id>` | Bearer Token | Updates task title, description, priority, assignee |
-| `POST` | `/api/tasks/<task_id>/complete` | Bearer Token | Marks task as completed, sets `completed_at` |
-| `DELETE` | `/api/tasks/<task_id>` | Bearer Token | Deletes task (authorized creator only) |
-| `GET` | `/api/tasks/<task_id>/activity` | Bearer Token | Returns chronological activity audit log |
+#### 1. Service Health
+- **Method:** `GET`
+- **Path:** `/api/health`
+- **Auth:** Public
+- **Response (200):**
+  ```json
+  { "status": "ok" }
+  ```
+
+#### 2. Current User Profile
+- **Method:** `GET`
+- **Path:** `/api/me`
+- **Auth:** Bearer Token
+- **Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "email": "user@example.com",
+      "full_name": "Jane Doe",
+      "avatar_url": "https://...",
+      "created_at": "2026-10-05T18:00:00Z"
+    }
+  }
+  ```
+- **Errors:** 401 `UNAUTHENTICATED`
+
+#### 3. List Assignable Users
+- **Method:** `GET`
+- **Path:** `/api/users`
+- **Auth:** Bearer Token
+- **Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "email": "user@example.com",
+        "full_name": "Jane Doe",
+        "avatar_url": "https://..."
+      }
+    ]
+  }
+  ```
+
+#### 4. Search Users
+- **Method:** `GET`
+- **Path:** `/api/users/search?q={query}`
+- **Auth:** Bearer Token
+- **Query Params:** `q` (string)
+- **Response (200):** List of matching user objects (max 20).
+
+#### 5. List Tasks
+- **Method:** `GET`
+- **Path:** `/api/tasks`
+- **Auth:** Bearer Token
+- **Query Params:**
+  - `status`: `todo` | `in_progress` | `completed`
+  - `priority`: `low` | `medium` | `high` | `urgent`
+  - `assigned_to`: `me` or specific UUID
+  - `created_by`: `me` or specific UUID
+  - `search`: string (matches title or description)
+  - `sort`: `newest` | `oldest` | `due_soon` | `priority`
+  - `page`: integer (default 1)
+  - `limit`: integer (default 50)
+- **Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "tasks": [...],
+      "total": 12,
+      "page": 1,
+      "limit": 50
+    }
+  }
+  ```
+
+#### 6. Create Task
+- **Method:** `POST`
+- **Path:** `/api/tasks`
+- **Auth:** Bearer Token
+- **Request Body:**
+  ```json
+  {
+    "title": "Complete backend API",
+    "description": "Implement authentication and task services",
+    "priority": "high",
+    "assigned_to": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "due_date": "2026-10-10T18:00:00Z"
+  }
+  ```
+- **Response (201):** Newly created task object.
+- **Errors:**
+  - 400 `VALIDATION_ERROR` (title empty, invalid priority, bad date format)
+  - 404 `USER_NOT_FOUND` (assigned_to user doesn't exist)
+
+#### 7. Get Task Details
+- **Method:** `GET`
+- **Path:** `/api/tasks/{task_id}`
+- **Auth:** Bearer Token
+- **Response (200):** Task details with populated `creator`, `assignee`, and chronological `activity` timeline.
+- **Errors:**
+  - 400 `INVALID_ID`
+  - 404 `TASK_NOT_FOUND`
+  - 403 `FORBIDDEN` (user is neither creator nor assignee)
+
+#### 8. Update Task
+- **Method:** `PATCH`
+- **Path:** `/api/tasks/{task_id}`
+- **Auth:** Bearer Token
+- **Request Body:** Partial task fields (`title`, `description`, `priority`, `status`, `assigned_to`, `due_date`).
+- **Authorization Rules:**
+  - Creator: can modify all fields.
+  - Assignee: can **only** modify `status`.
+- **Errors:**
+  - 403 `FORBIDDEN` (assignee attempting to edit non-status fields, or unauthorized user)
+  - 400 `VALIDATION_ERROR`
+  - 404 `TASK_NOT_FOUND`
+
+#### 9. Complete Task
+- **Method:** `POST`
+- **Path:** `/api/tasks/{task_id}/complete`
+- **Auth:** Bearer Token
+- **Response (200):** Updated task with `status = 'completed'` and `completed_at` timestamp.
+- **Errors:** 403 `FORBIDDEN` (if user is neither creator nor assignee).
+
+#### 10. Delete Task
+- **Method:** `DELETE`
+- **Path:** `/api/tasks/{task_id}`
+- **Auth:** Bearer Token
+- **Authorization Rules:** Only the task **creator** can delete.
+- **Response (200):** `{"deleted": true, "task_id": "..."}`
+- **Errors:** 403 `FORBIDDEN` (if assignee or outsider attempts deletion).
+
+#### 11. Task Activity History
+- **Method:** `GET`
+- **Path:** `/api/tasks/{task_id}/activity`
+- **Auth:** Bearer Token
+- **Response (200):** Chronological audit records of all events (`task_created`, `task_assigned`, `status_changed`, `task_updated`, `task_completed`).
 
 ---
 
-## Database Schema
+## 6. Database Schema & RLS
 
 ```mermaid
 erDiagram
@@ -234,18 +369,39 @@ erDiagram
     }
 ```
 
+### Row Level Security (RLS) Matrix
+- **`profiles`**: All authenticated users can view public profile fields (for team assignment). Users can only update their own profile.
+- **`tasks`**: Direct read/update is restricted to `created_by = auth.uid()` or `assigned_to = auth.uid()`. Deletion is strictly creator-only.
+- **`task_activity`**: Accessible only if the user is authorized to view the corresponding task.
+
 ---
 
-## Local Development Setup
+## 7. Email Architecture
+
+```text
+Task Action (Created / Assigned / Completed)
+         ↓
+    TaskService
+         ↓
+    EmailService
+         ↓
+  Provider Dispatcher (Mock / Resend / Gmail API)
+```
+- **Clean Separation**: Neither route handlers nor database queries touch email APIs directly.
+- **Failure Isolation**: An email provider failure or rate limit **never** crashes or rolls back task creation or completion.
+- **Configuration**: Managed through `EMAIL_PROVIDER=resend|gmail|none`.
+
+---
+
+## 8. Local Development Setup
 
 ### 1. Prerequisites
 - **Node.js**: v20+ or v24+
 - **Python**: 3.11+ or 3.12+
 - **Git**
-- A free account on [Supabase](https://supabase.com)
+- Free Supabase project
 
 ### 2. Environment Configuration
-Create environment files from templates:
 ```bash
 # Frontend
 cp frontend/.env.example frontend/.env.local
@@ -254,34 +410,37 @@ cp frontend/.env.example frontend/.env.local
 cp backend/.env.example backend/.env
 ```
 
-Fill in your Supabase project URL and keys:
-- `frontend/.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `backend/.env`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+### 3. Database Migration Execution
+Apply the SQL migrations located in `/migrations` in order in your Supabase SQL editor:
+1. `001_initial_schema.sql`
+2. `002_add_indexes.sql`
+3. `003_add_task_activity.sql`
+4. `004_rls_and_triggers.sql`
 
-### 3. Running the Frontend
+### 4. Running the Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-The Next.js application will be available at [http://localhost:3000](http://localhost:3000).
+Available at [http://localhost:3000](http://localhost:3000).
 
-### 4. Running the Backend
+### 5. Running the Backend
 ```bash
 cd backend
 python -m venv venv
 
-# Windows:
+# Windows
 .\venv\Scripts\activate
-# macOS/Linux:
+# macOS/Linux
 source venv/bin/activate
 
 pip install -r requirements.txt
 python run.py
 ```
-The Flask REST API will be running at [http://localhost:5000](http://localhost:5000). Verify by navigating to [http://localhost:5000/api/health](http://localhost:5000/api/health).
+Available at [http://localhost:5000](http://localhost:5000).
 
-### 5. Running Backend Tests
+### 6. Running Tests
 ```bash
 cd backend
 .\venv\Scripts\pytest
@@ -289,31 +448,22 @@ cd backend
 
 ---
 
-## Security Considerations
+## 9. Deployment Guide
 
-1. **Service Role Key Isolation**: The Supabase Service Role Key bypasses all Row Level Security policies. It is loaded only on the Flask backend via `SUPABASE_SERVICE_ROLE_KEY`. It is never exported to or referenced by the Next.js frontend.
-2. **Token Verification**: Flask authenticates every incoming request by decoding and validating the Bearer JWT against Supabase's auth service.
-3. **No Client Identity Spoofing**: `created_by` and actor UUIDs are extracted directly from the verified JWT, preventing malicious clients from submitting arbitrary user IDs.
-4. **CORS Hardening**: Flask restricts Cross-Origin Resource Sharing specifically to `FRONTEND_URL` (e.g. `http://localhost:3000` in dev). Wildcards (`*`) are disallowed.
-5. **Safe Error Masking**: Centralized Flask error handlers return sanitized JSON messages and omit internal stack traces from client responses.
+### Frontend on Vercel
+1. Import repository into [Vercel](https://vercel.com).
+2. Set Root Directory to `frontend`.
+3. Configure Environment Variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `NEXT_PUBLIC_API_URL` (URL of deployed Flask backend, e.g. `https://your-api.onrender.com/api`)
+4. Deploy!
 
----
-
-## Phased Development Roadmap
-
-- [x] **Phase 1**: Project initialization, directory structure, Next.js & Flask setup, environment templates, health check, baseline tests.
-- [ ] **Phase 2**: Supabase database migrations, tables (`profiles`, `tasks`, `task_activity`), indexes, and RLS policies.
-- [ ] **Phase 3**: Google OAuth integration via Supabase Auth and auth callback handling.
-- [ ] **Phase 4**: Flask JWT authentication middleware and user context injection.
-- [ ] **Phase 5**: User profile synchronization and assignment search APIs.
-- [ ] **Phase 6**: Core Task CRUD endpoints and validation.
-- [ ] **Phase 7**: Backend authorization enforcement (creator vs. assignee privileges).
-- [ ] **Phase 8**: Task assignment logic and team delegation.
-- [ ] **Phase 9**: Frontend dashboard metrics, recent tasks, and tasks due soon.
-- [ ] **Phase 10**: Search, filtering, and sorting engine.
-- [ ] **Phase 11**: Real-time activity audit history and timeline UI.
-- [ ] **Phase 12**: Decoupled email notification service abstraction.
-- [ ] **Phase 13**: End-to-end test suite (health, auth, authorization, edge cases).
-- [ ] **Phase 14**: Security audit, CORS verification, and input sanitation check.
-- [ ] **Phase 15**: Production deployment configuration (Vercel + Railway/Render).
-- [ ] **Phase 16**: Final documentation and submission review.
+### Backend on Render / Railway
+1. **Render**: Use the provided `render.yaml` or create a new Web Service pointing to `backend/`.
+2. Configure Environment Variables:
+   - `FLASK_ENV=production`
+   - `FRONTEND_URL=https://your-vercel-app.vercel.app`
+   - `SUPABASE_URL=https://your-project.supabase.co`
+   - `SUPABASE_SERVICE_ROLE_KEY=your_server_role_key`
+3. Start command: `gunicorn run:app --bind 0.0.0.0:$PORT`

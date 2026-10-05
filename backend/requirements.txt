@@ -5,3 +5,4 @@ supabase==2.13.0
 gotrue==2.11.1
 requests==2.32.3
 pytest==8.3.4
+gunicorn==23.0.0
