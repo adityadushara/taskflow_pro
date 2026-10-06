@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api';
 import { Task, TaskStatus, TaskPriority } from '@/types';
@@ -21,23 +21,36 @@ import {
   ListTodo,
   AlertTriangle,
   Loader2,
-  Sparkles,
+  Check,
+  RotateCw,
+  Flame,
 } from 'lucide-react';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, isLoading: authLoading } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [selectedView, setSelectedView] = useState<'all' | 'assigned' | 'created'>('all');
+  // Filters - sync initial state with URL query param if present
+  const viewParam = searchParams?.get('view') as 'all' | 'assigned' | 'created' | null;
+  const [selectedView, setSelectedView] = useState<'all' | 'assigned' | 'created'>(
+    viewParam && ['all', 'assigned', 'created'].includes(viewParam) ? viewParam : 'all'
+  );
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Keep selectedView in sync if query param changes
+  useEffect(() => {
+    if (viewParam && ['all', 'assigned', 'created'].includes(viewParam)) {
+      setSelectedView(viewParam);
+    }
+  }, [viewParam]);
 
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +89,44 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router, fetchTasks]);
 
+  // Quick Complete toggle from dashboard table with optimistic update
+  const handleQuickComplete = async (e: React.MouseEvent, taskId: string, currentStatus: TaskStatus) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const newStatus: TaskStatus = currentStatus === 'completed' ? 'in_progress' : 'completed';
+
+    // Optimistic update in UI
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+
+    try {
+      const res = await apiClient<Task>(`/tasks/${taskId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.success) {
+        // Revert on failure
+        fetchTasks();
+      }
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      fetchTasks();
+    }
+  };
+
+  // Switch view tab and reflect in URL
+  const handleViewChange = (view: 'all' | 'assigned' | 'created') => {
+    setSelectedView(view);
+    const newParams = new URLSearchParams(searchParams?.toString() || '');
+    if (view === 'all') {
+      newParams.delete('view');
+    } else {
+      newParams.set('view', view);
+    }
+    router.replace(`/dashboard${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+  };
+
   // Derived Metrics
   const metrics = useMemo(() => {
     const total = tasks.length;
@@ -105,113 +156,153 @@ export default function DashboardPage() {
       .slice(0, 4);
   }, [tasks]);
 
-  const firstName =
-    profile?.full_name?.split(' ')[0] ||
-    (user?.email ? user.email.split('@')[0] : 'there');
+  const rawName = profile?.full_name?.trim();
+  const firstName = rawName && rawName !== user?.email
+    ? rawName.split(' ')[0]
+    : user?.email
+      ? user.email.split('@')[0]
+      : 'there';
 
   return (
     <AppLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
-      <div className="space-y-7">
-        {/* Header Title & Quick Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="space-y-6">
+        {/* Header Title with Welcome Greeting */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">
                 Welcome back, <span className="text-indigo-600 capitalize">{firstName}</span>
               </h1>
-              <span className="text-lg">👋</span>
+              <span className="text-xl">👋</span>
             </div>
             <p className="mt-1 text-xs text-slate-500 font-medium">
               Monitor team assignments, track deadlines, and review workspace activity.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => fetchTasks()}
+              title="Refresh tasks"
+              className="p-2 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-xl transition-all cursor-pointer shadow-2xs"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+            </button>
             <Link
               href="/tasks/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all cursor-pointer active:scale-98"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm shadow-indigo-200 transition-all cursor-pointer active:scale-98"
             >
-              <Plus className="w-4 h-4" />
-              <span>Create Task</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Task</span>
             </Link>
           </div>
         </div>
 
         {/* Metrics Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {/* Total Tasks */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Total Tasks</span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <ListTodo className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100/60 flex items-center justify-center">
+                <ListTodo className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.total}</p>
-            <p className="mt-1 text-[11px] text-slate-400 font-medium">Accessible workspace tasks</p>
+            <p className="mt-2.5 text-2xl font-black text-slate-900 tracking-tight">{metrics.total}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Workspace tasks</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+          {/* My Tasks */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>My Tasks</span>
-              <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                <CheckSquare className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 border border-sky-100/60 flex items-center justify-center">
+                <CheckSquare className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.myTasks}</p>
-            <p className="mt-1 text-[11px] text-slate-400 font-medium">Assigned to your account</p>
+            <p className="mt-2.5 text-2xl font-black text-slate-900 tracking-tight">{metrics.myTasks}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Assigned to you</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+          {/* In Progress */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>In Progress</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Clock className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-100/60 flex items-center justify-center">
+                <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.inProgress}</p>
-            <p className="mt-1 text-[11px] text-slate-400 font-medium">Currently active execution</p>
+            <p className="mt-2.5 text-2xl font-black text-slate-900 tracking-tight">{metrics.inProgress}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Active execution</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+          {/* Completed */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Completed</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100/60 flex items-center justify-center">
+                <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.completed}</p>
+            <p className="mt-2.5 text-2xl font-black text-slate-900 tracking-tight">{metrics.completed}</p>
             <p className="mt-1 text-[11px] text-slate-400 font-medium">Successfully resolved</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all col-span-2 lg:col-span-1">
+          {/* Overdue */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Overdue</span>
-              <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4" />
+              <div
+                className={`w-7 h-7 rounded-lg border flex items-center justify-center ${
+                  metrics.overdue > 0
+                    ? 'bg-rose-50 text-rose-600 border-rose-200'
+                    : 'bg-slate-50 text-slate-400 border-slate-100'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-rose-600 tracking-tight">{metrics.overdue}</p>
-            <p className="mt-1 text-[11px] text-rose-500 font-medium">Missed deadline</p>
+            <p
+              className={`mt-2.5 text-2xl font-black tracking-tight ${
+                metrics.overdue > 0 ? 'text-rose-600' : 'text-slate-900'
+              }`}
+            >
+              {metrics.overdue}
+            </p>
+            <p
+              className={`mt-1 text-[11px] font-medium ${
+                metrics.overdue > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'
+              }`}
+            >
+              {metrics.overdue > 0 ? 'Action required' : 'No missed deadlines'}
+            </p>
           </div>
         </div>
 
-        {/* Tasks Due Soon Alert Banner */}
+        {/* Tasks Due Soon - Clean Banner */}
         {tasksDueSoon.length > 0 && (
-          <div className="p-5 rounded-2xl bg-linear-to-r from-amber-50/80 to-amber-50/40 border border-amber-200/80 shadow-2xs">
-            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-3">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
-              <span>Urgent Deadlines — {tasksDueSoon.length} Task(s) Due Within 72 Hours</span>
+          <div className="p-4 rounded-2xl bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/70 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                <Flame className="w-4 h-4 text-amber-600" />
+                <span>Urgent Deadlines — {tasksDueSoon.length} Task{tasksDueSoon.length > 1 ? 's' : ''} Due in 72h</span>
+              </div>
+              <span className="text-[11px] text-amber-700 font-semibold bg-amber-100/70 px-2 py-0.5 rounded-full">
+                Attention Needed
+              </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
               {tasksDueSoon.map((task) => (
                 <Link
                   key={task.id}
                   href={`/tasks/${task.id}`}
-                  className="p-3.5 rounded-xl bg-white border border-amber-200/80 shadow-2xs hover:shadow-xs hover:border-amber-300 transition-all block group"
+                  className="p-3 rounded-xl bg-white border border-amber-200/90 shadow-2xs hover:shadow-xs hover:border-amber-400 transition-all block group"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <PriorityBadge priority={task.priority} />
-                    <span className="text-[10px] text-amber-800 font-bold">
+                    <span className="text-[10px] text-amber-800 font-bold flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : ''}
                     </span>
                   </div>
@@ -225,35 +316,38 @@ export default function DashboardPage() {
         )}
 
         {/* Filter Controls Bar */}
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* View Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl w-fit border border-slate-200/60">
+            <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl w-fit border border-slate-200/50">
               <button
-                onClick={() => setSelectedView('all')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                type="button"
+                onClick={() => handleViewChange('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'all'
-                    ? 'bg-white text-slate-900 shadow-2xs'
+                    ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/60'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 All Tasks
               </button>
               <button
-                onClick={() => setSelectedView('assigned')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                type="button"
+                onClick={() => handleViewChange('assigned')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'assigned'
-                    ? 'bg-white text-slate-900 shadow-2xs'
+                    ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/60'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 Assigned to Me
               </button>
               <button
-                onClick={() => setSelectedView('created')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                type="button"
+                onClick={() => handleViewChange('created')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'created'
-                    ? 'bg-white text-slate-900 shadow-2xs'
+                    ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/60'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -262,14 +356,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Dropdown Filters & Sorting */}
-            <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-slate-500 font-semibold">Status:</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 transition-all cursor-pointer text-xs"
                 >
                   <option value="all">All</option>
                   <option value="todo">To Do</option>
@@ -283,7 +377,7 @@ export default function DashboardPage() {
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 transition-all cursor-pointer text-xs"
                 >
                   <option value="all">All</option>
                   <option value="low">Low</option>
@@ -298,7 +392,7 @@ export default function DashboardPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 transition-all cursor-pointer text-xs"
                 >
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
@@ -311,10 +405,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Task List Table */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-          <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
-            <h2 className="text-sm font-bold text-slate-900 tracking-wide">Workspace Tasks</h2>
-            <span className="text-xs text-slate-500 font-semibold bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+          <div className="p-3.5 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
+            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Workspace Tasks</h2>
+            <span className="text-xs text-slate-500 font-bold bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
               {tasks.length} task{tasks.length === 1 ? '' : 's'}
             </span>
           </div>
@@ -323,14 +417,13 @@ export default function DashboardPage() {
             <div className="p-8 text-center text-rose-600 text-sm">
               <AlertCircle className="w-6 h-6 mx-auto mb-2 text-rose-500" />
               <p className="font-semibold">{error}</p>
-              <p className="text-xs text-slate-400 mt-1">Please ensure the Supabase migrations have been run in your project.</p>
             </div>
           )}
 
           {isLoading ? (
             <div className="p-16 text-center text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-2" />
-              <p className="text-xs font-semibold text-slate-600">Loading tasks from Flask API...</p>
+              <p className="text-xs font-semibold text-slate-600">Loading tasks...</p>
             </div>
           ) : tasks.length === 0 ? (
             <div className="p-16 text-center">
@@ -354,7 +447,8 @@ export default function DashboardPage() {
               <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50/70 text-slate-400 text-[11px] uppercase tracking-wider font-bold border-b border-slate-100">
                   <tr>
-                    <th className="py-3 px-6">Task Title</th>
+                    <th className="py-3 px-6 w-12 text-center">Done</th>
+                    <th className="py-3 px-4">Task Title</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Priority</th>
                     <th className="py-3 px-4">Assignee</th>
@@ -369,77 +463,111 @@ export default function DashboardPage() {
                       task.due_date &&
                       new Date(task.due_date) < new Date();
 
+                    const isDone = task.status === 'completed';
+
                     return (
-                      <tr key={task.id} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="py-4 px-6">
+                      <tr key={task.id} className="hover:bg-slate-50/90 transition-colors group">
+                        {/* Quick complete checkbox */}
+                        <td className="py-3.5 px-6 text-center">
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickComplete(e, task.id, task.status)}
+                            title={isDone ? 'Mark In Progress' : 'Mark Completed'}
+                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                              isDone
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'border-slate-300 hover:border-indigo-600 bg-white text-transparent hover:text-indigo-600'
+                            }`}
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </button>
+                        </td>
+
+                        {/* Title & Description */}
+                        <td className="py-3.5 px-4">
                           <Link
                             href={`/tasks/${task.id}`}
-                            className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors block text-sm"
+                            className={`font-bold text-sm block group-hover:text-indigo-600 transition-colors ${
+                              isDone ? 'line-through text-slate-400' : 'text-slate-900'
+                            }`}
                           >
                             {task.title}
                           </Link>
                           {task.description && (
-                            <p className="text-xs text-slate-400 truncate max-w-md mt-0.5">
+                            <p className="text-xs text-slate-400 truncate max-w-sm mt-0.5">
                               {task.description}
                             </p>
                           )}
                         </td>
 
-                        <td className="py-4 px-4 whitespace-nowrap">
+                        {/* Status */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <StatusBadge status={task.status} />
                         </td>
 
-                        <td className="py-4 px-4 whitespace-nowrap">
+                        {/* Priority */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <PriorityBadge priority={task.priority} />
                         </td>
 
-                        <td className="py-4 px-4 whitespace-nowrap">
+                        {/* Assignee */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           {task.assignee ? (
                             <div className="flex items-center gap-2">
-                              {task.assignee.avatar_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={task.assignee.avatar_url}
-                                  alt=""
-                                  className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200"
-                                />
-                              ) : (
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[10px]">
-                                  {task.assignee.full_name?.charAt(0) || 'U'}
-                                </div>
-                              )}
-                              <span className="text-xs text-slate-700 font-semibold">
+                              {/* Avatar with fallback */}
+                              <div className="relative w-6 h-6 rounded-full overflow-hidden shrink-0 bg-linear-to-tr from-indigo-600 to-violet-600 text-white font-bold flex items-center justify-center text-[10px] shadow-2xs">
+                                <span>{task.assignee.full_name?.charAt(0) || 'U'}</span>
+                                {task.assignee.avatar_url && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={task.assignee.avatar_url}
+                                    alt=""
+                                    referrerPolicy="no-referrer"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLElement).style.display = 'none';
+                                    }}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <span className="text-xs text-slate-700 font-bold">
                                 {task.assignee.full_name || task.assignee.email}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs text-slate-400 italic">Unassigned</span>
+                            <span className="text-xs text-slate-400 font-medium italic">Unassigned</span>
                           )}
                         </td>
 
-                        <td className="py-4 px-4 whitespace-nowrap text-xs">
+                        {/* Due date */}
+                        <td className="py-3.5 px-4 whitespace-nowrap text-xs">
                           {task.due_date ? (
                             <span
-                              className={`flex items-center gap-1.5 font-semibold ${
+                              className={`flex items-center gap-1.5 font-bold ${
                                 isOverdue ? 'text-rose-600' : 'text-slate-600'
                               }`}
                             >
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />
                               {new Date(task.due_date).toLocaleDateString()}
-                              {isOverdue && <span className="text-[10px] bg-rose-50 px-1.5 py-0.5 rounded text-rose-600 border border-rose-200">Overdue</span>}
+                              {isOverdue && (
+                                <span className="text-[10px] bg-rose-50 px-1.5 py-0.5 rounded text-rose-600 border border-rose-200">
+                                  Overdue
+                                </span>
+                              )}
                             </span>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}
                         </td>
 
-                        <td className="py-4 px-6 text-right whitespace-nowrap">
+                        {/* Open Action */}
+                        <td className="py-3.5 px-6 text-right whitespace-nowrap">
                           <Link
                             href={`/tasks/${task.id}`}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
                           >
                             <span>Open</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            <ArrowRight className="w-3 h-3" />
                           </Link>
                         </td>
                       </tr>
@@ -452,5 +580,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading dashboard...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
