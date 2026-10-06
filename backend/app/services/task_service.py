@@ -1,4 +1,5 @@
 import uuid
+import time
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from app.utils.supabase_client import get_supabase_client
@@ -123,7 +124,12 @@ class TaskService:
         offset = (max(1, page) - 1) * limit
         query = query.range(offset, offset + limit - 1)
 
-        result = query.execute()
+        try:
+            result = query.execute()
+        except Exception:
+            # Short retry for transient socket drops
+            time.sleep(0.2)
+            result = query.execute()
         return {
             "tasks": result.data or [],
             "total": result.count or 0,

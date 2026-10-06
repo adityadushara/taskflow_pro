@@ -1,4 +1,4 @@
-from flask import Blueprint, request, g
+from flask import Blueprint, request, g, current_app
 from app.middleware.auth import require_auth
 from app.services.user_service import UserService
 from app.utils.responses import success_response, error_response
@@ -11,17 +11,24 @@ def get_current_user_profile():
     """
     GET /api/me
     Returns profile information for the authenticated user.
+    Includes graceful token-metadata fallback in case of transient database connection delays.
     """
     try:
         profile = UserService.get_or_sync_profile(g.current_user)
         return success_response(data=profile)
     except Exception as e:
-        return error_response(
-            code="PROFILE_FETCH_FAILED",
-            message="Failed to retrieve user profile",
-            status_code=500,
-            details=str(e)
-        )
+        current_app.logger.warning(f"Profile DB read warning: {str(e)}. Returning token profile fallback.")
+        meta = g.current_user.get("user_metadata", {}) or {}
+        email = g.current_user.get("email", "")
+        fallback_profile = {
+            "id": g.current_user.get("id"),
+            "email": email,
+            "full_name": meta.get("full_name") or meta.get("name") or (email.split("@")[0] if email else "User"),
+            "avatar_url": meta.get("avatar_url") or meta.get("picture") or "",
+            "created_at": None,
+            "updated_at": None,
+        }
+        return success_response(data=fallback_profile)
 
 @users_bp.route("/users", methods=["GET"])
 @require_auth
