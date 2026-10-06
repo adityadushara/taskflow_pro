@@ -170,9 +170,9 @@ export default function NewTaskPage() {
         </div>
 
         {/* Card Wrapper */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm relative">
           {/* Header Banner */}
-          <div className="px-8 py-6 border-b border-slate-100 bg-linear-to-r from-slate-50/50 to-white flex items-center justify-between">
+          <div className="px-8 py-6 border-b border-slate-100 bg-linear-to-r from-slate-50/50 to-white flex items-center justify-between rounded-t-2xl">
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100 mb-2">
                 <Sparkles className="w-3 h-3" />
