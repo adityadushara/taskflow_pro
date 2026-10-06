@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   CheckSquare,
   FolderPlus,
-  Layers,
   Plus,
   LogOut,
   Search,
@@ -33,7 +32,7 @@ function SidebarNav({ pathname, onNavClick }: { pathname: string; onNavClick: ()
       name: 'Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard,
-      isActive: pathname === '/dashboard' && !currentView,
+      isActive: pathname === '/dashboard' && (!currentView || currentView === 'all'),
     },
     {
       name: 'My Tasks',
@@ -46,12 +45,6 @@ function SidebarNav({ pathname, onNavClick }: { pathname: string; onNavClick: ()
       href: '/dashboard?view=created',
       icon: FolderPlus,
       isActive: pathname === '/dashboard' && currentView === 'created',
-    },
-    {
-      name: 'All Tasks',
-      href: '/dashboard?view=all',
-      icon: Layers,
-      isActive: pathname === '/dashboard' && currentView === 'all',
     },
   ];
 
