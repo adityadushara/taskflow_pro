@@ -167,3 +167,49 @@ def test_task_creation_with_assignee_email(client):
         assert data["success"] is True
         assert data["data"]["assigned_to"] == USER_2_ID
 
+def test_task_creation_triggers_creation_email(client):
+    """Creating a task dispatches task creation email to creator."""
+    with patch("app.services.task_service.get_supabase_client") as mock_supabase, \
+         patch("app.services.task_service.TaskService.log_activity"), \
+         patch("app.services.email_service.EmailService.send_task_created_email") as mock_email:
+
+        mock_supabase.return_value.table.return_value.insert.return_value.execute.return_value.data = [{
+            "id": TASK_ID,
+            "title": "Send Welcome Campaign",
+            "priority": "medium",
+            "status": "todo",
+            "created_by": USER_1_ID,
+            "assigned_to": None
+        }]
+
+        payload = {"title": "Send Welcome Campaign", "priority": "medium"}
+        response = client.post("/api/tasks", json=payload, headers=auth_headers(USER_1_ID))
+        assert response.status_code == 201
+        assert mock_email.called is True
+
+def test_task_completion_triggers_completion_email(client):
+    """Marking a task as completed dispatches completion email."""
+    existing_task = {
+        "id": TASK_ID,
+        "title": "Deploy API to Production",
+        "status": "in_progress",
+        "created_by": USER_1_ID,
+        "assigned_to": USER_2_ID
+    }
+    with patch("app.services.task_service.get_supabase_client") as mock_supabase, \
+         patch("app.services.task_service.TaskService.log_activity"), \
+         patch("app.services.user_service.UserService.get_user_by_id") as mock_get_user, \
+         patch("app.services.email_service.EmailService.send_task_completed_email") as mock_completed_email:
+
+        mock_supabase.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [existing_task]
+        mock_supabase.return_value.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [{
+            **existing_task,
+            "status": "completed"
+        }]
+        mock_get_user.return_value = {"id": USER_1_ID, "email": "creator@example.com", "full_name": "Creator"}
+
+        response = client.patch(f"/api/tasks/{TASK_ID}", json={"status": "completed"}, headers=auth_headers(USER_1_ID))
+        assert response.status_code == 200
+        assert mock_completed_email.called is True
+
+

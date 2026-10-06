@@ -197,13 +197,14 @@ class TaskService:
         task = res.data[0]
         task_id = task["id"]
 
-        # Log creation activity
+        # Log creation activity & send task creation email
         cls.log_activity(task_id, current_user_id, "task_created")
+        EmailService.send_task_created_email(task, current_user, assignee=assignee_profile)
 
         # Log assignment & dispatch notification if assigned to another user
         if assigned_to:
             cls.log_activity(task_id, current_user_id, "task_assigned", {"assigned_to": assigned_to})
-            if assignee_profile:
+            if assignee_profile and assignee_profile.get("id") != current_user_id:
                 EmailService.send_task_assigned_email(task, assignee_profile, current_user)
 
         return task, None
@@ -347,7 +348,16 @@ class TaskService:
             if update_fields["status"] == "completed":
                 cls.log_activity(task_id, current_user_id, "task_completed")
                 creator_profile = UserService.get_user_by_id(existing_task["created_by"])
-                EmailService.send_task_completed_email(updated_task, current_user, creator_profile)
+                assignee_id = update_fields.get("assigned_to", existing_task.get("assigned_to"))
+                assignee_profile = UserService.get_user_by_id(assignee_id) if assignee_id else None
+
+                # Notify task creator
+                if creator_profile:
+                    EmailService.send_task_completed_email(updated_task, current_user, creator_profile)
+
+                # Also notify assignee if different from creator and completer
+                if assignee_profile and assignee_profile.get("id") != current_user_id and assignee_profile.get("id") != existing_task["created_by"]:
+                    EmailService.send_task_completed_email(updated_task, current_user, assignee_profile)
 
         if "assigned_to" in update_fields and update_fields["assigned_to"] != existing_task.get("assigned_to"):
             cls.log_activity(task_id, current_user_id, "task_assigned", {
