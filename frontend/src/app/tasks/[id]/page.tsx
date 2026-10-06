@@ -10,6 +10,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { AssigneeSelector } from '@/components/ui/AssigneeSelector';
 import {
   ArrowLeft,
   Calendar,
@@ -43,6 +44,7 @@ export default function TaskDetailsPage() {
   const [editDescription, setEditDescription] = useState<string>('');
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editAssignedTo, setEditAssignedTo] = useState<string>('');
+  const [editAssignedToEmail, setEditAssignedToEmail] = useState<string>('');
   const [editDueDate, setEditDueDate] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -61,6 +63,7 @@ export default function TaskDetailsPage() {
         setEditDescription(res.data.description || '');
         setEditPriority(res.data.priority);
         setEditAssignedTo(res.data.assigned_to || '');
+        setEditAssignedToEmail(res.data.assignee?.email || '');
         setEditDueDate(
           res.data.due_date ? new Date(res.data.due_date).toISOString().slice(0, 16) : ''
         );
@@ -136,6 +139,7 @@ export default function TaskDetailsPage() {
           description: editDescription.trim() || null,
           priority: editPriority,
           assigned_to: editAssignedTo || null,
+          assigned_to_email: editAssignedToEmail || null,
           due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
         }),
       });
@@ -292,19 +296,15 @@ export default function TaskDetailsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Assignee</label>
-                  <select
-                    value={editAssignedTo}
-                    onChange={(e) => setEditAssignedTo(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.full_name || u.email}
-                      </option>
-                    ))}
-                  </select>
+                  <AssigneeSelector
+                    users={users}
+                    selectedUserId={editAssignedTo}
+                    selectedEmail={editAssignedToEmail}
+                    onChange={(userId, email) => {
+                      setEditAssignedTo(userId);
+                      setEditAssignedToEmail(email);
+                    }}
+                  />
                 </div>
 
                 <div>

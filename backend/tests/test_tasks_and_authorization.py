@@ -133,3 +133,37 @@ def test_task_assignment_to_nonexistent_user(client):
         assert response.status_code == 404
         data = response.get_json()
         assert data["error"]["code"] == "USER_NOT_FOUND"
+
+def test_task_creation_with_assignee_email(client):
+    """User can assign task directly using email address."""
+    mock_assignee = {
+        "id": USER_2_ID,
+        "email": "sarah.jenkins@hairdrama.com",
+        "full_name": "Sarah Jenkins",
+        "avatar_url": ""
+    }
+    with patch("app.services.user_service.UserService.get_or_create_by_email", return_value=mock_assignee), \
+         patch("app.services.task_service.get_supabase_client") as mock_supabase, \
+         patch("app.services.task_service.TaskService.log_activity"), \
+         patch("app.services.email_service.EmailService.send_task_assigned_email"):
+
+        mock_supabase.return_value.table.return_value.insert.return_value.execute.return_value.data = [{
+            "id": TASK_ID,
+            "title": "Brand UI Refresh",
+            "priority": "high",
+            "status": "todo",
+            "created_by": USER_1_ID,
+            "assigned_to": USER_2_ID
+        }]
+
+        payload = {
+            "title": "Brand UI Refresh",
+            "priority": "high",
+            "assigned_to_email": "sarah.jenkins@hairdrama.com"
+        }
+        response = client.post("/api/tasks", json=payload, headers=auth_headers(USER_1_ID))
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["assigned_to"] == USER_2_ID
+

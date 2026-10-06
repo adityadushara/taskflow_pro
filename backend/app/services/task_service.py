@@ -160,8 +160,15 @@ class TaskService:
             return None, {"code": "VALIDATION_ERROR", "message": f"Invalid priority. Allowed: {list(ALLOWED_PRIORITIES)}"}
 
         assigned_to = data.get("assigned_to")
+        assigned_to_email = data.get("assigned_to_email")
         assignee_profile = None
-        if assigned_to:
+
+        if assigned_to_email and not assigned_to:
+            assignee_profile = UserService.get_or_create_by_email(assigned_to_email)
+            if not assignee_profile:
+                return None, {"code": "VALIDATION_ERROR", "message": f"Could not resolve or provision account for email '{assigned_to_email}'."}
+            assigned_to = assignee_profile["id"]
+        elif assigned_to:
             if not cls.is_valid_uuid(assigned_to):
                 return None, {"code": "VALIDATION_ERROR", "message": "Invalid assigned_to UUID."}
             assignee_profile = UserService.get_user_by_id(assigned_to)
@@ -307,7 +314,16 @@ class TaskService:
                     return None, {"code": "VALIDATION_ERROR", "message": "Invalid due_date format."}
                 update_fields["due_date"] = due_date or None
 
-            if "assigned_to" in data:
+            if "assigned_to_email" in data and "assigned_to" not in data:
+                assigned_to_email = data["assigned_to_email"]
+                if assigned_to_email:
+                    assignee_profile = UserService.get_or_create_by_email(assigned_to_email)
+                    if not assignee_profile:
+                        return None, {"code": "VALIDATION_ERROR", "message": f"Could not resolve or provision account for email '{assigned_to_email}'."}
+                    update_fields["assigned_to"] = assignee_profile["id"]
+                else:
+                    update_fields["assigned_to"] = None
+            elif "assigned_to" in data:
                 assigned_to = data["assigned_to"]
                 if assigned_to:
                     if not cls.is_valid_uuid(assigned_to):

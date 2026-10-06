@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api';
 import { UserProfile, TaskPriority, Task } from '@/types';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { AssigneeSelector } from '@/components/ui/AssigneeSelector';
 import {
   ArrowLeft,
   Loader2,
@@ -35,6 +36,7 @@ export default function NewTaskPage() {
   const [description, setDescription] = useState<string>('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [assignedTo, setAssignedTo] = useState<string>('');
+  const [assignedToEmail, setAssignedToEmail] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
 
   // Field validation errors
@@ -91,6 +93,7 @@ export default function NewTaskPage() {
       description: description.trim() || null,
       priority,
       assigned_to: assignedTo || null,
+      assigned_to_email: assignedToEmail || null,
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
     };
 
@@ -267,32 +270,17 @@ export default function NewTaskPage() {
 
               {/* Assignee & Due Date Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-                {/* Assignee Selector */}
+                {/* Assignee Selector with Email support */}
                 <div>
-                  <label htmlFor="task-assignee" className="block text-xs font-bold text-slate-800 mb-2 tracking-wide">
-                    Assignee
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="task-assignee"
-                      value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
-                      className="w-full appearance-none px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm font-medium shadow-2xs hover:border-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-3 focus:ring-indigo-500/15 transition-all cursor-pointer pr-10"
-                    >
-                      <option value="">Unassigned (No owner)</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.full_name || u.email}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-500">
-                      <User className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    {users.length > 0 ? `${users.length} team member(s) available` : 'Assignable to registered users'}
-                  </p>
+                  <AssigneeSelector
+                    users={users}
+                    selectedUserId={assignedTo}
+                    selectedEmail={assignedToEmail}
+                    onChange={(userId, email) => {
+                      setAssignedTo(userId);
+                      setAssignedToEmail(email);
+                    }}
+                  />
                 </div>
 
                 {/* Due Date */}
