@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { AssigneeSelector } from '@/components/ui/AssigneeSelector';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import {
   ArrowLeft,
   Calendar,
@@ -308,12 +309,10 @@ export default function TaskDetailsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Due Date</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
+                    label="Due Date"
                     value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                    onChange={setEditDueDate}
                   />
                 </div>
               </div>

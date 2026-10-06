@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api';
 import { UserProfile, TaskPriority, Task } from '@/types';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AssigneeSelector } from '@/components/ui/AssigneeSelector';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import {
   ArrowLeft,
   Loader2,
@@ -283,21 +284,12 @@ export default function NewTaskPage() {
                   />
                 </div>
 
-                {/* Due Date */}
+                {/* Due Date with Custom DateTimePicker */}
                 <div>
-                  <label htmlFor="task-due-date" className="block text-xs font-bold text-slate-800 mb-2 tracking-wide">
-                    Due Date & Time
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="task-due-date"
-                      type="datetime-local"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm font-medium shadow-2xs hover:border-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-3 focus:ring-indigo-500/15 transition-all"
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">Deadlines trigger dashboard countdowns</p>
+                  <DateTimePicker
+                    value={dueDate}
+                    onChange={setDueDate}
+                  />
                 </div>
               </div>
 
