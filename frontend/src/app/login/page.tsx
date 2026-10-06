@@ -22,6 +22,12 @@ function LoginForm() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
+    // If access token hash is present, forward to callback handler instead of showing error
+    if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+      router.replace('/auth/callback' + window.location.hash);
+      return;
+    }
+
     // Read potential errors passed from OAuth callback
     const error = searchParams.get('error');
     if (error) {
@@ -31,7 +37,7 @@ function LoginForm() {
         setErrorMessage(decodeURIComponent(error));
       }
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleGoogleLogin = async () => {
     setIsSigningIn(true);
