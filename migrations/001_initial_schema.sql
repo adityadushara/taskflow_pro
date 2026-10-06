@@ -32,12 +32,14 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     description TEXT,
     status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'completed')),
     priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-    created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_by UUID NOT NULL,
+    assigned_to UUID,
     due_date TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    completed_at TIMESTAMPTZ
+    completed_at TIMESTAMPTZ,
+    CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE CASCADE,
+    CONSTRAINT tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 
 COMMENT ON TABLE public.tasks IS 'Task management entity created and assigned to profiles';
