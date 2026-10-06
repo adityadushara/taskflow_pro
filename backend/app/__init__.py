@@ -49,7 +49,7 @@ def create_app(config_class=Config):
 
     @app.errorhandler(500)
     def internal_error(e):
-        # Do not expose raw Python stack traces to clients
+        app.logger.error(f"Internal Server Error: {str(e)}")
         return error_response(code="INTERNAL_SERVER_ERROR", message="An unexpected server error occurred", status_code=500)
 
     return app
