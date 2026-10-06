@@ -14,7 +14,6 @@ import {
   Clock,
   AlertCircle,
   Calendar,
-  User,
   Plus,
   ArrowRight,
   Filter,
@@ -22,11 +21,12 @@ import {
   ListTodo,
   AlertTriangle,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -105,22 +105,31 @@ export default function DashboardPage() {
       .slice(0, 4);
   }, [tasks]);
 
+  const firstName =
+    profile?.full_name?.split(' ')[0] ||
+    (user?.email ? user.email.split('@')[0] : 'there');
+
   return (
     <AppLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
-      <div className="space-y-8">
+      <div className="space-y-7">
         {/* Header Title & Quick Action */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Welcome back! Here is a summary of your workspace activities and milestones.
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+                Welcome back, <span className="text-indigo-600 capitalize">{firstName}</span>
+              </h1>
+              <span className="text-lg">👋</span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500 font-medium">
+              Monitor team assignments, track deadlines, and review workspace activity.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <Link
               href="/tasks/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium text-sm hover:bg-indigo-700 shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all cursor-pointer active:scale-98"
             >
               <Plus className="w-4 h-4" />
               <span>Create Task</span>
@@ -130,73 +139,85 @@ export default function DashboardPage() {
 
         {/* Metrics Row */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Total Tasks</span>
-              <ListTodo className="w-4 h-4 text-indigo-600" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <ListTodo className="w-4 h-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{metrics.total}</p>
-            <p className="mt-1 text-[11px] text-slate-400">Accessible tasks</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.total}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Accessible workspace tasks</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>My Tasks</span>
-              <CheckSquare className="w-4 h-4 text-sky-600" />
+              <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                <CheckSquare className="w-4 h-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{metrics.myTasks}</p>
-            <p className="mt-1 text-[11px] text-slate-400">Assigned to you</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.myTasks}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Assigned to your account</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>In Progress</span>
-              <Clock className="w-4 h-4 text-blue-600" />
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Clock className="w-4 h-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{metrics.inProgress}</p>
-            <p className="mt-1 text-[11px] text-slate-400">Currently active</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.inProgress}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Currently active execution</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Completed</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{metrics.completed}</p>
-            <p className="mt-1 text-[11px] text-slate-400">Resolved tasks</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight">{metrics.completed}</p>
+            <p className="mt-1 text-[11px] text-slate-400 font-medium">Successfully resolved</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all col-span-2 lg:col-span-1">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Overdue</span>
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-rose-600">{metrics.overdue}</p>
-            <p className="mt-1 text-[11px] text-slate-400">Past due date</p>
+            <p className="mt-3 text-3xl font-extrabold text-rose-600 tracking-tight">{metrics.overdue}</p>
+            <p className="mt-1 text-[11px] text-rose-500 font-medium">Missed deadline</p>
           </div>
         </div>
 
         {/* Tasks Due Soon Alert Banner */}
         {tasksDueSoon.length > 0 && (
-          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80">
-            <div className="flex items-center gap-2 text-amber-800 font-semibold text-sm mb-3">
+          <div className="p-5 rounded-2xl bg-linear-to-r from-amber-50/80 to-amber-50/40 border border-amber-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-3">
               <AlertCircle className="w-4 h-4 text-amber-600" />
-              <span>Action Needed: {tasksDueSoon.length} Task(s) Due Within 72 Hours</span>
+              <span>Urgent Deadlines — {tasksDueSoon.length} Task(s) Due Within 72 Hours</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {tasksDueSoon.map((task) => (
                 <Link
                   key={task.id}
                   href={`/tasks/${task.id}`}
-                  className="p-3 rounded-xl bg-white border border-amber-200/60 shadow-xs hover:shadow-sm transition-all block"
+                  className="p-3.5 rounded-xl bg-white border border-amber-200/80 shadow-2xs hover:shadow-xs hover:border-amber-300 transition-all block group"
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1.5">
                     <PriorityBadge priority={task.priority} />
-                    <span className="text-[10px] text-amber-700 font-medium">
+                    <span className="text-[10px] text-amber-800 font-bold">
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : ''}
                     </span>
                   </div>
-                  <p className="text-xs font-semibold text-slate-800 truncate">{task.title}</p>
+                  <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                    {task.title}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -204,36 +225,36 @@ export default function DashboardPage() {
         )}
 
         {/* Filter Controls Bar */}
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-4">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* View Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+            <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl w-fit border border-slate-200/60">
               <button
                 onClick={() => setSelectedView('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'all'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 All Tasks
               </button>
               <button
                 onClick={() => setSelectedView('assigned')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'assigned'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 Assigned to Me
               </button>
               <button
                 onClick={() => setSelectedView('created')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedView === 'created'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 Created by Me
@@ -244,11 +265,11 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-500 font-medium">Status:</span>
+                <span className="text-slate-500 font-semibold">Status:</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
                 >
                   <option value="all">All</option>
                   <option value="todo">To Do</option>
@@ -258,11 +279,11 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 font-medium">Priority:</span>
+                <span className="text-slate-500 font-semibold">Priority:</span>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
                 >
                   <option value="all">All</option>
                   <option value="low">Low</option>
@@ -273,14 +294,14 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 font-medium">Sort:</span>
+                <span className="text-slate-500 font-semibold">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
                 >
-                  <option value="newest">Newest</option>
-                  <option value="oldest">Oldest</option>
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
                   <option value="due_soon">Due Date</option>
                   <option value="priority">Priority</option>
                 </select>
@@ -290,47 +311,48 @@ export default function DashboardPage() {
         </div>
 
         {/* Task List Table */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">Task Overview</h2>
-            <span className="text-xs text-slate-400 font-medium">
-              Showing {tasks.length} task{tasks.length === 1 ? '' : 's'}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
+            <h2 className="text-sm font-bold text-slate-900 tracking-wide">Workspace Tasks</h2>
+            <span className="text-xs text-slate-500 font-semibold bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+              {tasks.length} task{tasks.length === 1 ? '' : 's'}
             </span>
           </div>
 
           {error && (
-            <div className="p-6 text-center text-rose-600 text-sm">
-              <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-              <p>{error}</p>
+            <div className="p-8 text-center text-rose-600 text-sm">
+              <AlertCircle className="w-6 h-6 mx-auto mb-2 text-rose-500" />
+              <p className="font-semibold">{error}</p>
+              <p className="text-xs text-slate-400 mt-1">Please ensure the Supabase migrations have been run in your project.</p>
             </div>
           )}
 
           {isLoading ? (
-            <div className="p-12 text-center text-slate-400">
+            <div className="p-16 text-center text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-2" />
-              <p className="text-sm">Loading tasks...</p>
+              <p className="text-xs font-semibold text-slate-600">Loading tasks from Flask API...</p>
             </div>
           ) : tasks.length === 0 ? (
             <div className="p-16 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-2xs">
                 <CheckSquare className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">No tasks found</h3>
-              <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-                No tasks match your selected filter criteria. Create your first task to get started!
+              <h3 className="text-base font-bold text-slate-900">No tasks in this view</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                No tasks match your selected filter or search criteria.
               </p>
               <Link
                 href="/tasks/new"
-                className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium text-xs hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-700 transition-all shadow-xs cursor-pointer active:scale-98"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Create Task</span>
+                <span>Create New Task</span>
               </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-slate-50/70 text-slate-400 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-100">
+                <thead className="bg-slate-50/70 text-slate-400 text-[11px] uppercase tracking-wider font-bold border-b border-slate-100">
                   <tr>
                     <th className="py-3 px-6">Task Title</th>
                     <th className="py-3 px-4">Status</th>
@@ -352,7 +374,7 @@ export default function DashboardPage() {
                         <td className="py-4 px-6">
                           <Link
                             href={`/tasks/${task.id}`}
-                            className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors block"
+                            className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors block text-sm"
                           >
                             {task.title}
                           </Link>
@@ -379,14 +401,14 @@ export default function DashboardPage() {
                                 <img
                                   src={task.assignee.avatar_url}
                                   alt=""
-                                  className="w-6 h-6 rounded-full object-cover"
+                                  className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200"
                                 />
                               ) : (
-                                <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px]">
+                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[10px]">
                                   {task.assignee.full_name?.charAt(0) || 'U'}
                                 </div>
                               )}
-                              <span className="text-xs text-slate-700 font-medium">
+                              <span className="text-xs text-slate-700 font-semibold">
                                 {task.assignee.full_name || task.assignee.email}
                               </span>
                             </div>
@@ -398,13 +420,13 @@ export default function DashboardPage() {
                         <td className="py-4 px-4 whitespace-nowrap text-xs">
                           {task.due_date ? (
                             <span
-                              className={`flex items-center gap-1.5 ${
-                                isOverdue ? 'text-rose-600 font-semibold' : 'text-slate-500'
+                              className={`flex items-center gap-1.5 font-semibold ${
+                                isOverdue ? 'text-rose-600' : 'text-slate-600'
                               }`}
                             >
-                              <Calendar className="w-3.5 h-3.5" />
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
                               {new Date(task.due_date).toLocaleDateString()}
-                              {isOverdue && ' (Overdue)'}
+                              {isOverdue && <span className="text-[10px] bg-rose-50 px-1.5 py-0.5 rounded text-rose-600 border border-rose-200">Overdue</span>}
                             </span>
                           ) : (
                             <span className="text-slate-400">—</span>
@@ -414,9 +436,9 @@ export default function DashboardPage() {
                         <td className="py-4 px-6 text-right whitespace-nowrap">
                           <Link
                             href={`/tasks/${task.id}`}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                           >
-                            <span>Details</span>
+                            <span>Open</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </Link>
                         </td>

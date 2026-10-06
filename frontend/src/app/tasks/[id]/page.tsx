@@ -13,7 +13,6 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import {
   ArrowLeft,
   Calendar,
-  Clock,
   CheckCircle2,
   Trash2,
   Edit3,
@@ -22,7 +21,8 @@ import {
   Loader2,
   History,
   Save,
-  X,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 
 export default function TaskDetailsPage() {
@@ -85,7 +85,6 @@ export default function TaskDetailsPage() {
 
     if (user && taskId) {
       fetchTaskDetails();
-      // Load user profiles for assignment picker
       apiClient<UserProfile[]>('/users').then((res) => {
         if (res.success && res.data) setUsers(res.data);
       });
@@ -97,7 +96,6 @@ export default function TaskDetailsPage() {
   const canModify = isCreator;
   const canChangeStatus = isCreator || isAssignee;
 
-  // Handle Quick Status Change
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!task) return;
     try {
@@ -113,7 +111,6 @@ export default function TaskDetailsPage() {
     }
   };
 
-  // Handle Complete Task
   const handleComplete = async () => {
     if (!task) return;
     try {
@@ -128,7 +125,6 @@ export default function TaskDetailsPage() {
     }
   };
 
-  // Handle Save Edits
   const handleSaveEdits = async () => {
     if (!task) return;
     setIsSaving(true);
@@ -156,7 +152,6 @@ export default function TaskDetailsPage() {
     }
   };
 
-  // Handle Delete Task
   const handleDeleteTask = async () => {
     if (!task) return;
     setIsDeleting(true);
@@ -183,7 +178,7 @@ export default function TaskDetailsPage() {
       <AppLayout>
         <div className="py-24 text-center text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-2" />
-          <p className="text-sm">Loading task specifications...</p>
+          <p className="text-xs font-semibold text-slate-600">Loading task details...</p>
         </div>
       </AppLayout>
     );
@@ -196,11 +191,11 @@ export default function TaskDetailsPage() {
           <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Unable to Display Task</h2>
-          <p className="mt-1 text-sm text-slate-500">{error || 'Task not found'}</p>
+          <h2 className="text-lg font-bold text-slate-900">Task Inaccessible</h2>
+          <p className="mt-1 text-xs text-slate-500 font-medium">{error || 'Task not found'}</p>
           <Link
             href="/dashboard"
-            className="mt-6 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium text-xs hover:bg-indigo-700 transition-colors shadow-sm"
+            className="mt-6 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Return to Dashboard</span>
@@ -217,18 +212,18 @@ export default function TaskDetailsPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Dashboard
+            <span>Back to Dashboard</span>
           </Link>
 
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2.5">
             {canChangeStatus && task.status !== 'completed' && (
               <button
                 onClick={handleComplete}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Mark Completed</span>
@@ -238,9 +233,9 @@ export default function TaskDetailsPage() {
             {canModify && !isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
               >
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-3.5 h-3.5 text-slate-500" />
                 <span>Edit</span>
               </button>
             )}
@@ -248,9 +243,9 @@ export default function TaskDetailsPage() {
             {isCreator && (
               <button
                 onClick={() => setIsDeleteModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-100 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-100 transition-all cursor-pointer shadow-2xs"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                 <span>Delete</span>
               </button>
             )}
@@ -258,36 +253,36 @@ export default function TaskDetailsPage() {
         </div>
 
         {/* Main Details Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-8 shadow-xs">
           {isEditing ? (
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Title</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">Task Title</label>
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-base font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-3 focus:ring-indigo-500/15"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">Description</label>
                 <textarea
                   rows={4}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-3 focus:ring-indigo-500/15"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Priority</label>
                   <select
                     value={editPriority}
                     onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -297,11 +292,11 @@ export default function TaskDetailsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assignee</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Assignee</label>
                   <select
                     value={editAssignedTo}
                     onChange={(e) => setEditAssignedTo(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
                   >
                     <option value="">Unassigned</option>
                     {users.map((u) => (
@@ -313,12 +308,12 @@ export default function TaskDetailsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Due Date</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">Due Date</label>
                   <input
                     type="datetime-local"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
               </div>
@@ -327,7 +322,7 @@ export default function TaskDetailsPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
                 >
                   Cancel
                 </button>
@@ -335,7 +330,7 @@ export default function TaskDetailsPage() {
                   type="button"
                   onClick={handleSaveEdits}
                   disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-700 shadow-sm disabled:opacity-60 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-xs disabled:opacity-60 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
@@ -344,31 +339,31 @@ export default function TaskDetailsPage() {
             </div>
           ) : (
             <div>
-              <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="flex flex-wrap items-center gap-2.5 mb-4">
                 <StatusBadge status={task.status} />
                 <PriorityBadge priority={task.priority} />
                 {task.due_date && (
-                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Calendar className="w-3.5 h-3.5" />
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-200">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     Due: {new Date(task.due_date).toLocaleString()}
                   </span>
                 )}
               </div>
 
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">{task.title}</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{task.title}</h1>
 
-              <div className="mt-4 text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
-                {task.description || <span className="italic text-slate-400">No description provided.</span>}
+              <div className="mt-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {task.description || <span className="italic text-slate-400">No description provided for this task.</span>}
               </div>
 
               {/* Status Update Dropdown for quick state switching */}
               {canChangeStatus && (
                 <div className="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-                  <span className="text-xs font-medium text-slate-500">Change Status:</span>
+                  <span className="text-xs font-bold text-slate-600">Quick Status Transition:</span>
                   <select
                     value={task.status}
                     onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:border-indigo-600 shadow-2xs cursor-pointer"
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
@@ -381,30 +376,30 @@ export default function TaskDetailsPage() {
 
           {/* People & Dates Meta Grid */}
           <div className="mt-8 pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-            <div>
-              <span className="text-slate-400 block font-medium">Created By</span>
-              <span className="font-semibold text-slate-800 mt-1 block">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Created By</span>
+              <span className="font-bold text-slate-800 mt-1 block truncate">
                 {task.creator?.full_name || task.creator?.email || 'Creator'}
               </span>
             </div>
 
-            <div>
-              <span className="text-slate-400 block font-medium">Assigned To</span>
-              <span className="font-semibold text-slate-800 mt-1 block">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Assigned To</span>
+              <span className="font-bold text-slate-800 mt-1 block truncate">
                 {task.assignee?.full_name || task.assignee?.email || 'Unassigned'}
               </span>
             </div>
 
-            <div>
-              <span className="text-slate-400 block font-medium">Created Date</span>
-              <span className="font-semibold text-slate-800 mt-1 block">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Created Date</span>
+              <span className="font-bold text-slate-800 mt-1 block">
                 {new Date(task.created_at).toLocaleDateString()}
               </span>
             </div>
 
-            <div>
-              <span className="text-slate-400 block font-medium">Completed Date</span>
-              <span className="font-semibold text-slate-800 mt-1 block">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Completed Date</span>
+              <span className="font-bold text-slate-800 mt-1 block">
                 {task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '—'}
               </span>
             </div>
@@ -412,16 +407,16 @@ export default function TaskDetailsPage() {
         </div>
 
         {/* Activity & History Section */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-8 shadow-xs">
           <div className="flex items-center gap-2 mb-6">
             <History className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-base font-bold text-slate-900">Activity History</h2>
+            <h2 className="text-base font-bold text-slate-900">Chronological Activity History</h2>
           </div>
 
           {activity.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">No activity recorded yet.</p>
+            <p className="text-xs text-slate-400 italic">No activity recorded yet for this task.</p>
           ) : (
-            <div className="relative pl-6 border-l-2 border-slate-100 space-y-6">
+            <div className="relative pl-6 border-l-2 border-indigo-100 space-y-6">
               {activity.map((act) => {
                 const actionLabels: Record<string, string> = {
                   task_created: 'created this task',
@@ -434,14 +429,13 @@ export default function TaskDetailsPage() {
 
                 return (
                   <div key={act.id} className="relative group">
-                    {/* Timeline Node Dot */}
-                    <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white bg-indigo-600 shadow-xs" />
+                    <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white bg-indigo-600 shadow-2xs" />
 
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-bold text-slate-800">
                         {act.user?.full_name || act.user?.email || 'A team member'}
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-600 font-medium">
                         {actionLabels[act.action] || act.action}
                       </span>
                       <span className="text-slate-400 text-[11px]">
@@ -450,7 +444,7 @@ export default function TaskDetailsPage() {
                     </div>
 
                     {act.metadata && Object.keys(act.metadata).length > 0 && (
-                      <div className="mt-1.5 p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-600 font-mono">
+                      <div className="mt-1.5 p-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-700 font-mono">
                         {JSON.stringify(act.metadata)}
                       </div>
                     )}
@@ -462,7 +456,6 @@ export default function TaskDetailsPage() {
         </div>
       </div>
 
-      {/* Confirmation Modal for Task Deletion */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         title="Delete Task"
