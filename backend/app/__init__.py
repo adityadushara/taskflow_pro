@@ -11,6 +11,7 @@ def create_app(config_class=Config):
     # Configure CORS - Allow frontend URLs (handles comma-separated strings & trailing slashes)
     allowed_origins = [
         "http://localhost:3000",
+        "https://hairdramaco.vercel.app",
         "https://task-management-app-five-pi.vercel.app"
     ]
     configured_frontend = app.config.get("FRONTEND_URL")
