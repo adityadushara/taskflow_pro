@@ -20,11 +20,11 @@ def parse_iso_datetime(dt_val: Any) -> Optional[datetime]:
         return None
 
 def format_datetime_pretty(dt_val: Any) -> str:
-    """Format datetime into a readable string like 'Thursday, Oct 8, 2026 • 2:35 PM UTC'."""
+    """Format datetime into a clean, professional string like 'October 08, 2026, 06:14 PM UTC'."""
     dt = parse_iso_datetime(dt_val)
     if not dt:
         return "Not specified"
-    return dt.strftime("%A, %b %d, %Y • %I:%M %p UTC")
+    return dt.strftime("%B %d, %Y, %I:%M %p UTC")
 
 def format_duration(seconds: float) -> str:
     """Format total seconds into human-readable duration."""
@@ -86,9 +86,9 @@ def calculate_task_performance(
             ahead_seconds = abs(diff_from_due)
             if ahead_seconds >= 60:
                 ahead_str = format_duration(ahead_seconds)
-                schedule_summary = f"Completed {ahead_str} ahead of deadline! 🚀"
+                schedule_summary = f"Completed {ahead_str} ahead of deadline"
             else:
-                schedule_summary = "Completed right on schedule! 🎯"
+                schedule_summary = "Completed right on schedule"
             status_tag = "ON TIME"
             badge_bg = "#ecfdf5"
             badge_color = "#047857"
@@ -118,10 +118,10 @@ def calculate_task_performance(
 def get_priority_style(priority: str) -> Dict[str, str]:
     p = (priority or "medium").lower()
     styles = {
-        "urgent": {"bg": "#fee2e2", "color": "#991b1b", "border": "#f87171", "label": "URGENT ⚡"},
-        "high": {"bg": "#ffedd5", "color": "#9a3412", "border": "#fb923c", "label": "HIGH 🔴"},
-        "medium": {"bg": "#e0e7ff", "color": "#3730a3", "border": "#818cf8", "label": "MEDIUM 🔵"},
-        "low": {"bg": "#f1f5f9", "color": "#334155", "border": "#94a3b8", "label": "LOW ⚪"},
+        "urgent": {"bg": "#fee2e2", "color": "#991b1b", "border": "#f87171", "label": "URGENT"},
+        "high": {"bg": "#ffedd5", "color": "#9a3412", "border": "#fb923c", "label": "HIGH"},
+        "medium": {"bg": "#e0e7ff", "color": "#3730a3", "border": "#818cf8", "label": "MEDIUM"},
+        "low": {"bg": "#f1f5f9", "color": "#334155", "border": "#94a3b8", "label": "LOW"},
     }
     return styles.get(p, styles["medium"])
 
@@ -140,10 +140,10 @@ def build_base_email(
     cta_block = ""
     if cta_text and cta_url:
         cta_block = f"""
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 32px 0 16px 0; width: 100%;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 12px 0; width: 100%;">
           <tr>
             <td align="center">
-              <a href="{html.escape(cta_url)}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); letter-spacing: -0.2px;">
+              <a href="{html.escape(cta_url)}" target="_blank" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 8px; letter-spacing: -0.2px;">
                 {html.escape(cta_text)} &rarr;
               </a>
             </td>
@@ -158,34 +158,34 @@ def build_base_email(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{html.escape(hero_title)}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f1f5f9; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc; padding: 36px 16px;">
     <tr>
       <td align="center">
         <!-- Main Card Container -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);">
-          <!-- Top Gradient Bar -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 580px; background-color: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);">
+          <!-- Top Accent Line -->
           <tr>
-            <td height="6" style="background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%); font-size: 0; line-height: 0;">&nbsp;</td>
+            <td height="4" style="background: linear-gradient(90deg, #4f46e5 0%, #6366f1 50%, #3b82f6 100%); font-size: 0; line-height: 0;">&nbsp;</td>
           </tr>
 
           <!-- Header -->
           <tr>
-            <td style="padding: 32px 36px 20px 36px; border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 28px 32px 18px 32px; border-bottom: 1px solid #f1f5f9;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td>
                     <div style="display: inline-block; vertical-align: middle;">
-                      <div style="width: 38px; height: 38px; background: #4f46e5; border-radius: 10px; text-align: center; line-height: 38px; color: #ffffff; font-weight: 800; font-size: 18px; display: inline-block; vertical-align: middle;">
+                      <div style="width: 32px; height: 32px; background: #4f46e5; border-radius: 8px; text-align: center; line-height: 32px; color: #ffffff; font-weight: 800; font-size: 16px; display: inline-block; vertical-align: middle;">
                         H
                       </div>
-                      <span style="font-size: 17px; font-weight: 700; color: #0f172a; margin-left: 10px; vertical-align: middle; letter-spacing: -0.3px;">
+                      <span style="font-size: 16px; font-weight: 700; color: #0f172a; margin-left: 10px; vertical-align: middle; letter-spacing: -0.3px;">
                         Hairdrama Task Hub
                       </span>
                     </div>
                   </td>
                   <td align="right">
-                    <span style="display: inline-block; background-color: {badge_bg}; color: {badge_color}; border: 1px solid {badge_border}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 5px 12px; border-radius: 9999px;">
+                    <span style="display: inline-block; background-color: {badge_bg}; color: {badge_color}; border: 1px solid {badge_border}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 9999px;">
                       {html.escape(hero_badge)}
                     </span>
                   </td>
@@ -196,8 +196,8 @@ def build_base_email(
 
           <!-- Body Content -->
           <tr>
-            <td style="padding: 36px 36px 28px 36px;">
-              <h1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.3;">
+            <td style="padding: 32px 32px 24px 32px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.4px; line-height: 1.3;">
                 {html.escape(hero_title)}
               </h1>
               {content_html}
@@ -207,8 +207,8 @@ def build_base_email(
 
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f8fafc; padding: 24px 36px; border-top: 1px solid #e2e8f0; text-align: center;">
-              <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+            <td style="background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748b; line-height: 1.5;">
                 This notification was dispatched automatically by <strong>Hairdrama Task Hub</strong>.
               </p>
               <p style="margin: 0; font-size: 11px; color: #94a3b8;">
@@ -241,8 +241,8 @@ def render_welcome_email(
     cred_text = ""
     if temporary_password:
         cred_html = f"""
-        <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 12px; padding: 16px 20px; margin: 24px 0;">
-          <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #854d0e;">Temporary Account Credentials</p>
+        <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 14px 18px; margin: 20px 0;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #854d0e; text-transform: uppercase;">Temporary Account Credentials</p>
           <p style="margin: 0; font-size: 13px; color: #a16207; font-family: monospace;">
             Email: <strong>{html.escape(user_email)}</strong><br>
             Password: <strong>{html.escape(temporary_password)}</strong>
@@ -253,50 +253,49 @@ def render_welcome_email(
         cred_text = f"\nTemporary Credentials:\nEmail: {user_email}\nPassword: {temporary_password}\n"
 
     content_html = f"""
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155;">
-      Hello <strong>{html.escape(user_name)}</strong>,
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155;">
+      Hi <strong>{html.escape(user_name)}</strong>, welcome to <strong>Hairdrama Task Hub</strong>!
     </p>
-    <p style="margin: 0 0 24px 0; font-size: 15px; color: #475569; line-height: 1.6;">
-      Welcome to <strong>Hairdrama Task Hub</strong>! Your account has been successfully initialized. You now have full access to high-velocity task management, team collaboration, and real-time velocity tracking.
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569; line-height: 1.6;">
+      Your workspace account has been initialized. You can now manage your projects, collaborate with team members, track deadlines, and maintain audit visibility.
     </p>
 
-    <!-- Feature Showcase Cards -->
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0;">
-      <p style="margin: 0 0 14px 0; font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">What you can do now:</p>
-      
+    {cred_html}
+
+    <!-- Features Overview -->
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 12px 0; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Workspace Capabilities</p>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
-          <td width="32" valign="top" style="padding-bottom: 12px; font-size: 18px;">🎯</td>
-          <td valign="top" style="padding-bottom: 12px; font-size: 14px; color: #334155;">
-            <strong>Create & Delegate Tasks:</strong> Set priorities, due dates, and assign teammates in one click.
+          <td width="20" valign="top" style="padding-bottom: 10px; color: #4f46e5; font-size: 14px; font-weight: bold;">&#8226;</td>
+          <td style="padding-bottom: 10px; font-size: 13px; color: #334155;">
+            <strong>Task Prioritization:</strong> Organize workloads by urgency, priority, and deadlines.
           </td>
         </tr>
         <tr>
-          <td width="32" valign="top" style="padding-bottom: 12px; font-size: 18px;">⏱️</td>
-          <td valign="top" style="padding-bottom: 12px; font-size: 14px; color: #334155;">
-            <strong>Turnaround Velocity:</strong> Automated performance auditing tracks completion speed and overdue deadlines.
+          <td width="20" valign="top" style="padding-bottom: 10px; color: #4f46e5; font-size: 14px; font-weight: bold;">&#8226;</td>
+          <td style="padding-bottom: 10px; font-size: 13px; color: #334155;">
+            <strong>Velocity Tracking:</strong> Monitor execution speed and turnaround analytics automatically.
           </td>
         </tr>
         <tr>
-          <td width="32" valign="top" style="font-size: 18px;">🔒</td>
-          <td valign="top" style="font-size: 14px; color: #334155;">
-            <strong>Permanent Activity Logs:</strong> Full audit trail of every status change, assignment, and completion.
+          <td width="20" valign="top" style="color: #4f46e5; font-size: 14px; font-weight: bold;">&#8226;</td>
+          <td style="font-size: 13px; color: #334155;">
+            <strong>Complete Audit History:</strong> Every change, assignment, and completion is securely logged.
           </td>
         </tr>
       </table>
     </div>
 
-    {cred_html}
-
-    <p style="margin: 0; font-size: 14px; color: #64748b;">
-      Click below to launch your personal workspace dashboard and start organizing your tasks.
+    <p style="margin: 16px 0 0 0; font-size: 14px; color: #475569;">
+      Click below to launch your personal dashboard and get started.
     </p>
     """
 
     html_email = build_base_email(
-        preheader=f"Welcome to Hairdrama Task Hub, {user_name}! Your account is ready.",
-        hero_badge="WELCOME ABOARD",
-        hero_title="Your Workspace is Ready 🚀",
+        preheader=f"Welcome to Hairdrama Task Hub, {user_name}! Your workspace is ready.",
+        hero_badge="WELCOME",
+        hero_title="Your Workspace is Ready",
         content_html=content_html,
         cta_text="Launch Your Dashboard",
         cta_url=dashboard_url,
@@ -307,7 +306,7 @@ def render_welcome_email(
 
     text_email = (
         f"Welcome to Hairdrama Task Hub, {user_name}!\n\n"
-        f"Your account has been successfully created. You can now collaborate on tasks, track turnaround velocity, and manage deadlines with enterprise rigor.\n"
+        f"Your account has been successfully created. You can now collaborate on tasks, track turnaround velocity, and manage deadlines with team visibility.\n"
         f"{cred_text}\n"
         f"Dashboard: {dashboard_url}\n\n"
         f"Enjoy your workspace!\n- The Hairdrama Task Hub Team"
@@ -325,7 +324,7 @@ def render_task_created_email(
     assignee: Optional[Dict[str, Any]] = None,
     frontend_url: str = "http://localhost:3000"
 ) -> Tuple[str, str]:
-    """Generates detailed task creation email with all initial metadata."""
+    """Generates detailed task creation email with clean typography and badges."""
     task_id = task.get("id", "")
     task_title = task.get("title", "Untitled Task")
     task_desc = task.get("description", "").strip() or "No description provided."
@@ -346,77 +345,82 @@ def render_task_created_email(
     task_url = f"{frontend_url.rstrip('/')}/tasks/{task_id}" if task_id else f"{frontend_url.rstrip('/')}/dashboard"
 
     content_html = f"""
-    <p style="margin: 0 0 16px 0; font-size: 15px; color: #475569;">
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">
       A new task has been created by <strong>{html.escape(creator_name)}</strong> in your workspace:
     </p>
 
     <!-- Task Overview Card -->
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin: 20px 0;">
-      <div style="margin-bottom: 14px;">
-        <span style="display: inline-block; background-color: {p_style['bg']}; color: {p_style['color']}; border: 1px solid {p_style['border']}; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 18px 0;">
+      <div style="margin-bottom: 12px;">
+        <span style="display: inline-block; background-color: {p_style['bg']}; color: {p_style['color']}; border: 1px solid {p_style['border']}; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
           {p_style['label']}
         </span>
-        <span style="display: inline-block; background-color: #e2e8f0; color: #334155; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase;">
+        <span style="display: inline-block; background-color: #e2e8f0; color: #334155; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase;">
           STATUS: TO DO
         </span>
       </div>
 
-      <h2 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #0f172a; line-height: 1.4;">
+      <h2 style="margin: 0 0 10px 0; font-size: 17px; font-weight: 700; color: #0f172a; line-height: 1.4;">
         {html.escape(task_title)}
       </h2>
 
-      <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+      <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
         <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Description</p>
-        <p style="margin: 0; font-size: 13px; color: #334155; white-space: pre-wrap; line-height: 1.5;">{html.escape(task_desc)}</p>
+        <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.5;">{html.escape(task_desc)}</p>
       </div>
 
+      <!-- Metadata Table -->
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
         <tr>
-          <td width="35%" style="padding: 6px 0; color: #64748b; font-weight: 600;">Due Date:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">{html.escape(due_date_str)}</td>
+          <td width="35%" style="padding: 5px 0; color: #64748b; font-weight: 500;">Target Deadline:</td>
+          <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{html.escape(due_date_str)}</td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Assignee:</td>
-          <td style="padding: 6px 0; color: #0f172a;">{html.escape(assignee_name)} {f'({assignee_email})' if assignee_email else ''}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Assignee:</td>
+          <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+            {html.escape(assignee_name)} {f'<span style="color: #64748b; font-weight: normal; font-size: 12px;">({html.escape(assignee_email)})</span>' if (assignee_email and assignee_email != assignee_name) else ''}
+          </td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Created By:</td>
-          <td style="padding: 6px 0; color: #0f172a;">{html.escape(creator_name)} {f'({creator_email})' if creator_email else ''}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Created By:</td>
+          <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+            {html.escape(creator_name)} {f'<span style="color: #64748b; font-weight: normal; font-size: 12px;">({html.escape(creator_email)})</span>' if (creator_email and creator_email != creator_name) else ''}
+          </td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Created At:</td>
-          <td style="padding: 6px 0; color: #64748b;">{html.escape(created_str)}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Created At:</td>
+          <td style="padding: 5px 0; color: #475569;">{html.escape(created_str)}</td>
         </tr>
       </table>
     </div>
 
     <p style="margin: 0; font-size: 13px; color: #64748b;">
-      You can review requirements, update progress, or collaborate directly via the workspace dashboard.
+      You can track this item and update its progress directly from your workspace.
     </p>
     """
 
     html_email = build_base_email(
-        preheader=f"Task Created: {task_title} (Priority: {priority.upper()})",
+        preheader=f"Task Created: {task_title} | Due: {due_date_str}",
         hero_badge="TASK CREATED",
-        hero_title="New Task Initialized 📋",
+        hero_title="New Task Created",
         content_html=content_html,
         cta_text="View Task Details",
         cta_url=task_url,
-        badge_bg="#e0e7ff",
-        badge_color="#3730a3",
-        badge_border="#c7d2fe"
+        badge_bg="#eff6ff",
+        badge_color="#1d4ed8",
+        badge_border="#bfdbfe"
     )
 
     text_email = (
         f"[Task Created] {task_title}\n\n"
         f"A new task has been created in Hairdrama Task Hub:\n\n"
-        f"• Title: {task_title}\n"
-        f"• Priority: {priority.upper()}\n"
-        f"• Status: TO DO\n"
-        f"• Due Date: {due_date_str}\n"
-        f"• Assignee: {assignee_name}\n"
-        f"• Created By: {creator_name}\n"
-        f"• Description: {task_desc}\n\n"
+        f"- Title: {task_title}\n"
+        f"- Priority: {priority.upper()}\n"
+        f"- Status: TO DO\n"
+        f"- Due Date: {due_date_str}\n"
+        f"- Assignee: {assignee_name}\n"
+        f"- Created By: {creator_name}\n"
+        f"- Description: {task_desc}\n\n"
         f"View task: {task_url}\n"
     )
 
@@ -454,19 +458,19 @@ def render_task_completed_email(
     task_url = f"{frontend_url.rstrip('/')}/tasks/{task_id}" if task_id else f"{frontend_url.rstrip('/')}/dashboard"
 
     content_html = f"""
-    <p style="margin: 0 0 16px 0; font-size: 15px; color: #475569;">
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">
       Great news! <strong>{html.escape(completer_name)}</strong> has completed the following task:
     </p>
 
     <!-- Performance Analytics Banner -->
-    <div style="background-color: {perf['badge_bg']}; border: 1px solid {perf['badge_border']}; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <div style="background-color: {perf['badge_bg']}; border: 1px solid {perf['badge_border']}; border-radius: 10px; padding: 18px 20px; margin: 18px 0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
           <td valign="middle">
-            <span style="display: inline-block; background-color: #ffffff; color: {perf['badge_color']}; border: 1px solid {perf['badge_border']}; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 8px;">
+            <span style="display: inline-block; background-color: #ffffff; color: {perf['badge_color']}; border: 1px solid {perf['badge_border']}; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 6px;">
               {perf['status_tag']}
             </span>
-            <div style="font-size: 15px; font-weight: 700; color: {perf['badge_color']};">
+            <div style="font-size: 14px; font-weight: 700; color: {perf['badge_color']};">
               {html.escape(perf['schedule_summary'])}
             </div>
           </td>
@@ -474,18 +478,18 @@ def render_task_completed_email(
       </table>
 
       <!-- Metrics Scorecard -->
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 16px; border-top: 1px solid {perf['badge_border']}; padding-top: 14px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 14px; border-top: 1px solid {perf['badge_border']}; padding-top: 12px;">
         <tr>
           <td width="50%" valign="top">
-            <p style="margin: 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Time Needed to Complete</p>
-            <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 800; color: #0f172a;">
-              ⏱️ {html.escape(perf['turnaround_str'])}
+            <p style="margin: 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Time Needed to Complete</p>
+            <p style="margin: 4px 0 0 0; font-size: 17px; font-weight: 800; color: #0f172a;">
+              {html.escape(perf['turnaround_str'])}
             </p>
           </td>
           <td width="50%" valign="top">
-            <p style="margin: 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Target Deadline</p>
-            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 700; color: #334155;">
-              📅 {html.escape(perf['due_formatted'])}
+            <p style="margin: 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Target Deadline</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 700; color: #334155;">
+              {html.escape(perf['due_formatted'])}
             </p>
           </td>
         </tr>
@@ -493,41 +497,43 @@ def render_task_completed_email(
     </div>
 
     <!-- Complete Task Details Card -->
-    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin: 20px 0;">
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 18px 0;">
       <div style="margin-bottom: 12px;">
-        <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
-          STATUS: COMPLETED ✅
+        <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
+          STATUS: COMPLETED
         </span>
-        <span style="display: inline-block; background-color: {p_style['bg']}; color: {p_style['color']}; border: 1px solid {p_style['border']}; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase;">
+        <span style="display: inline-block; background-color: {p_style['bg']}; color: {p_style['color']}; border: 1px solid {p_style['border']}; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase;">
           {p_style['label']}
         </span>
       </div>
 
-      <h2 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #0f172a;">
+      <h2 style="margin: 0 0 10px 0; font-size: 17px; font-weight: 700; color: #0f172a; line-height: 1.4;">
         {html.escape(task_title)}
       </h2>
 
-      <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-        <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Description</p>
-        <p style="margin: 0; font-size: 13px; color: #334155; white-space: pre-wrap; line-height: 1.5;">{html.escape(task_desc)}</p>
+      <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+        <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Description</p>
+        <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.5;">{html.escape(task_desc)}</p>
       </div>
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
         <tr>
-          <td width="35%" style="padding: 6px 0; color: #64748b; font-weight: 600;">Completed By:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">{html.escape(completer_name)} {f'({completer_email})' if completer_email else ''}</td>
+          <td width="35%" style="padding: 5px 0; color: #64748b; font-weight: 500;">Completed By:</td>
+          <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+            {html.escape(completer_name)} {f'<span style="color: #64748b; font-weight: normal; font-size: 12px;">({html.escape(completer_email)})</span>' if (completer_email and completer_email != completer_name) else ''}
+          </td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Created At:</td>
-          <td style="padding: 6px 0; color: #334155;">{html.escape(perf['created_formatted'])}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Created At:</td>
+          <td style="padding: 5px 0; color: #334155;">{html.escape(perf['created_formatted'])}</td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Completed At:</td>
-          <td style="padding: 6px 0; color: #047857; font-weight: 700;">{html.escape(perf['completed_formatted'])}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Completed At:</td>
+          <td style="padding: 5px 0; color: #047857; font-weight: 700;">{html.escape(perf['completed_formatted'])}</td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Total Duration:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">{html.escape(perf['turnaround_str'])}</td>
+          <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Total Duration:</td>
+          <td style="padding: 5px 0; color: #0f172a; font-weight: 700;">{html.escape(perf['turnaround_str'])}</td>
         </tr>
       </table>
     </div>
@@ -539,8 +545,8 @@ def render_task_completed_email(
 
     html_email = build_base_email(
         preheader=f"Task Completed: {task_title} | Turnaround: {perf['turnaround_str']} ({perf['status_tag']})",
-        hero_badge="TASK COMPLETED ✅",
-        hero_title="Task Completed Successfully!",
+        hero_badge="TASK COMPLETED",
+        hero_title="Task Completed Successfully",
         content_html=content_html,
         cta_text="Review Completed Task",
         cta_url=task_url,
@@ -553,15 +559,15 @@ def render_task_completed_email(
         f"[Task Completed] {task_title}\n\n"
         f"Marked as COMPLETED by {completer_name}.\n\n"
         f"PERFORMANCE BREAKDOWN:\n"
-        f"• Time Needed to Complete: {perf['turnaround_str']}\n"
-        f"• Schedule Status: {perf['status_tag']} ({perf['schedule_summary']})\n"
-        f"• Target Deadline: {perf['due_formatted']}\n"
-        f"• Created At: {perf['created_formatted']}\n"
-        f"• Completed At: {perf['completed_formatted']}\n\n"
+        f"- Time Needed to Complete: {perf['turnaround_str']}\n"
+        f"- Schedule Status: {perf['status_tag']} ({perf['schedule_summary']})\n"
+        f"- Target Deadline: {perf['due_formatted']}\n"
+        f"- Created At: {perf['created_formatted']}\n"
+        f"- Completed At: {perf['completed_formatted']}\n\n"
         f"TASK DETAILS:\n"
-        f"• Title: {task_title}\n"
-        f"• Priority: {priority.upper()}\n"
-        f"• Description: {task_desc}\n\n"
+        f"- Title: {task_title}\n"
+        f"- Priority: {priority.upper()}\n"
+        f"- Description: {task_desc}\n\n"
         f"View task: {task_url}\n"
     )
 
@@ -588,45 +594,46 @@ def render_task_deleted_email(
     deleted_time_str = format_datetime_pretty(datetime.now(timezone.utc))
 
     dashboard_url = f"{frontend_url.rstrip('/')}/dashboard"
-    p_style = get_priority_style(priority)
 
     content_html = f"""
-    <p style="margin: 0 0 16px 0; font-size: 15px; color: #475569;">
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">
       A task in your Hairdrama Task Hub workspace has been permanently removed by <strong>{html.escape(deleter_name)}</strong>:
     </p>
 
     <!-- Deletion Notice Card -->
-    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 22px; margin: 20px 0;">
+    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 20px; margin: 18px 0;">
       <div style="margin-bottom: 12px;">
-        <span style="display: inline-block; background-color: #b91c1c; color: #ffffff; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
-          DELETED 🗑️
+        <span style="display: inline-block; background-color: #b91c1c; color: #ffffff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase; margin-right: 6px;">
+          DELETED
         </span>
-        <span style="display: inline-block; background-color: #ffffff; color: #7f1d1d; border: 1px solid #fca5a5; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase;">
+        <span style="display: inline-block; background-color: #ffffff; color: #7f1d1d; border: 1px solid #fca5a5; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 9999px; text-transform: uppercase;">
           LAST STATUS: {html.escape(last_status)}
         </span>
       </div>
 
-      <h2 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 700; color: #991b1b; text-decoration: line-through;">
+      <h2 style="margin: 0 0 10px 0; font-size: 17px; font-weight: 700; color: #991b1b; text-decoration: line-through; line-height: 1.4;">
         {html.escape(task_title)}
       </h2>
 
-      <div style="background-color: #ffffff; border: 1px solid #fee2e2; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-        <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #991b1b; text-transform: uppercase;">Recorded Description</p>
+      <div style="background-color: #ffffff; border: 1px solid #fee2e2; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+        <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">Recorded Description</p>
         <p style="margin: 0; font-size: 13px; color: #7f1d1d; line-height: 1.5;">{html.escape(task_desc)}</p>
       </div>
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
         <tr>
-          <td width="35%" style="padding: 6px 0; color: #7f1d1d; font-weight: 600;">Deleted By:</td>
-          <td style="padding: 6px 0; color: #991b1b; font-weight: 700;">{html.escape(deleter_name)} {f'({deleter_email})' if deleter_email else ''}</td>
+          <td width="35%" style="padding: 5px 0; color: #7f1d1d; font-weight: 600;">Deleted By:</td>
+          <td style="padding: 5px 0; color: #991b1b; font-weight: 700;">
+            {html.escape(deleter_name)} {f'<span style="color: #991b1b; font-weight: normal; font-size: 12px;">({html.escape(deleter_email)})</span>' if (deleter_email and deleter_email != deleter_name) else ''}
+          </td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #7f1d1d; font-weight: 600;">Deleted At:</td>
-          <td style="padding: 6px 0; color: #7f1d1d;">{html.escape(deleted_time_str)}</td>
+          <td style="padding: 5px 0; color: #7f1d1d; font-weight: 600;">Deleted At:</td>
+          <td style="padding: 5px 0; color: #7f1d1d;">{html.escape(deleted_time_str)}</td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; color: #7f1d1d; font-weight: 600;">Priority:</td>
-          <td style="padding: 6px 0; color: #7f1d1d;">{html.escape(priority.upper())}</td>
+          <td style="padding: 5px 0; color: #7f1d1d; font-weight: 600;">Priority:</td>
+          <td style="padding: 5px 0; color: #7f1d1d;">{html.escape(priority.upper())}</td>
         </tr>
       </table>
     </div>
@@ -639,7 +646,7 @@ def render_task_deleted_email(
     html_email = build_base_email(
         preheader=f"Task Deleted: {task_title} was deleted by {deleter_name}",
         hero_badge="TASK DELETED",
-        hero_title="Task Removed from Workspace 🗑️",
+        hero_title="Task Removed from Workspace",
         content_html=content_html,
         cta_text="Return to Dashboard",
         cta_url=dashboard_url,
@@ -651,12 +658,12 @@ def render_task_deleted_email(
     text_email = (
         f"[Task Deleted] {task_title}\n\n"
         f"A task has been permanently deleted from Hairdrama Task Hub.\n\n"
-        f"• Task Title: {task_title}\n"
-        f"• Deleted By: {deleter_name}\n"
-        f"• Deleted At: {deleted_time_str}\n"
-        f"• Last Status: {last_status}\n"
-        f"• Priority: {priority.upper()}\n"
-        f"• Description: {task_desc}\n\n"
+        f"- Task Title: {task_title}\n"
+        f"- Deleted By: {deleter_name}\n"
+        f"- Deleted At: {deleted_time_str}\n"
+        f"- Last Status: {last_status}\n"
+        f"- Priority: {priority.upper()}\n"
+        f"- Description: {task_desc}\n\n"
         f"Dashboard: {dashboard_url}\n"
     )
 

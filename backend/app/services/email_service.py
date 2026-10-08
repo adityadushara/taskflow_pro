@@ -352,7 +352,12 @@ class EmailService:
                     "html": body_html or f"<p>{body_text}</p>"
                 }
 
-                res = requests.post(webhook_url, json=payload, timeout=15)
+                res = requests.post(
+                    webhook_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json; charset=utf-8"},
+                    timeout=15
+                )
                 if res.status_code in (200, 302):
                     try:
                         res_json = res.json()
