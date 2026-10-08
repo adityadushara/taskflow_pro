@@ -38,6 +38,7 @@ def health_email():
         "status": "ok",
         "provider": provider,
         "configured": bool(
+            (provider == "gmail_webhook" and Config.GMAIL_WEBHOOK_URL) or
             (provider == "brevo" and Config.BREVO_API_KEY) or
             (provider == "resend" and Config.RESEND_API_KEY) or
             (provider == "smtp" and Config.SMTP_USER and Config.SMTP_PASSWORD)

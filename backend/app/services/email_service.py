@@ -44,12 +44,18 @@ class EmailService:
             provider = Config.EMAIL_PROVIDER or "none"
 
         provider = str(provider).strip().lower()
+        if provider in ("gmail_webhook", "google_webhook", "webhook"):
+            return "gmail_webhook"
         if provider == "brevo":
             return "brevo"
         if provider == "resend":
             return "resend"
         if provider in ("smtp", "gmail", "google"):
             return "smtp"
+
+        # Auto-detect Google Apps Script Direct Gmail Webhook
+        if getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL"):
+            return "gmail_webhook"
 
         # Auto-detect Brevo if API key is provided
         brevo_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
@@ -306,8 +312,32 @@ class EmailService:
         from_address = getattr(Config, "EMAIL_FROM", None) or os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
 
         try:
-            # 1. Brevo (Sendinblue) REST API Integration (HTTPS port 443 - works on Railway)
-            if provider == "brevo":
+            # 1. Google Apps Script Direct Gmail Webhook (HTTPS Port 443 - 100% Direct Google Gmail without SMTP blocks)
+            if provider == "gmail_webhook":
+                webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
+                if not webhook_url:
+                    logger.warning("EmailService: GMAIL_WEBHOOK_URL missing.")
+                    return cls._log_mock_email(recipient, subject, body_text)
+
+                payload = {
+                    "to": recipient,
+                    "subject": subject,
+                    "body": body_text,
+                    "html": body_html or f"<p>{body_text}</p>"
+                }
+
+                res = requests.post(webhook_url, json=payload, timeout=12)
+                if res.status_code in (200, 302):
+                    print(f"[EMAIL SENT directly via Google Gmail Webhook] To: {recipient} | Subject: {subject}")
+                    return True
+                else:
+                    error_msg = f"Google Gmail Webhook HTTP {res.status_code}: {res.text}"
+                    cls._last_error = error_msg
+                    print(f"[EmailService Google Webhook Error] {error_msg}")
+                    return False
+
+            # 2. Brevo (Sendinblue) REST API Integration (HTTPS port 443)
+            elif provider == "brevo":
                 api_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
                 if not api_key:
                     logger.warning("EmailService: Brevo API key missing. Logging to console.")
