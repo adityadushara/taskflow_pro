@@ -44,9 +44,21 @@ class EmailService:
             provider = Config.EMAIL_PROVIDER or "none"
 
         provider = str(provider).strip().lower()
+        if provider == "brevo":
+            return "brevo"
+        if provider == "resend":
+            return "resend"
         if provider in ("smtp", "gmail", "google"):
             return "smtp"
-        if provider == "resend":
+
+        # Auto-detect Brevo if API key is provided
+        brevo_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
+        if brevo_key:
+            return "brevo"
+
+        # Auto-detect Resend if API key is provided
+        resend_key = getattr(Config, "RESEND_API_KEY", "") or os.getenv("RESEND_API_KEY", "")
+        if resend_key:
             return "resend"
 
         # Auto-detect SMTP if user and password are provided
@@ -54,11 +66,6 @@ class EmailService:
         smtp_pass = getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")
         if smtp_user and smtp_pass:
             return "smtp"
-
-        # Auto-detect Resend if API key is provided
-        resend_key = getattr(Config, "RESEND_API_KEY", "") or os.getenv("RESEND_API_KEY", "")
-        if resend_key:
-            return "resend"
 
         return provider
 
@@ -299,8 +306,53 @@ class EmailService:
         from_address = getattr(Config, "EMAIL_FROM", None) or os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
 
         try:
-            # 1. Resend API Integration
-            if provider == "resend":
+            # 1. Brevo (Sendinblue) REST API Integration (HTTPS port 443 - works on Railway)
+            if provider == "brevo":
+                api_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
+                if not api_key:
+                    logger.warning("EmailService: Brevo API key missing. Logging to console.")
+                    return cls._log_mock_email(recipient, subject, body_text)
+
+                sender_name = "Hairdrama Tasks"
+                sender_email = "drew34938@gmail.com"
+                if from_address:
+                    if "<" in from_address and ">" in from_address:
+                        sender_name = from_address.split("<")[0].strip() or "Hairdrama Tasks"
+                        sender_email = from_address.split("<")[1].split(">")[0].strip()
+                    elif "@" in from_address:
+                        sender_email = from_address.strip()
+
+                payload = {
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": recipient}],
+                    "subject": subject,
+                    "htmlContent": body_html or f"<p>{body_text}</p>",
+                    "textContent": body_text,
+                }
+
+                res = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "api-key": api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                    timeout=10
+                )
+
+                if res.status_code in (200, 201):
+                    res_data = res.json() if res.content else {}
+                    msg_id = res_data.get("messageId", "ok")
+                    print(f"[EMAIL SENT via Brevo] ID: {msg_id} | To: {recipient} | Subject: {subject}")
+                    return True
+                else:
+                    error_msg = f"Brevo HTTP {res.status_code}: {res.text}"
+                    cls._last_error = error_msg
+                    print(f"[EmailService Brevo Error] {error_msg}")
+                    return False
+
+            # 2. Resend API Integration
+            elif provider == "resend":
                 api_key = Config.RESEND_API_KEY or os.getenv("RESEND_API_KEY", "")
                 if not api_key:
                     logger.warning("EmailService: Resend API key missing. Logging to console.")

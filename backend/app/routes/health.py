@@ -38,8 +38,9 @@ def health_email():
         "status": "ok",
         "provider": provider,
         "configured": bool(
-            (provider == "smtp" and Config.SMTP_USER and Config.SMTP_PASSWORD) or
-            (provider == "resend" and Config.RESEND_API_KEY)
+            (provider == "brevo" and Config.BREVO_API_KEY) or
+            (provider == "resend" and Config.RESEND_API_KEY) or
+            (provider == "smtp" and Config.SMTP_USER and Config.SMTP_PASSWORD)
         ),
         "smtp_host": Config.SMTP_HOST if provider == "smtp" else None,
         "smtp_user": masked_user if provider == "smtp" else None,

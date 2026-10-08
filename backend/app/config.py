@@ -23,6 +23,7 @@ class Config:
     # Email Service Configuration
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "none")
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
     EMAIL_FROM = os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
     
     # SMTP / Gmail Service Configuration
