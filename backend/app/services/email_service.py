@@ -44,17 +44,25 @@ class EmailService:
             provider = Config.EMAIL_PROVIDER or "none"
 
         provider = str(provider).strip().lower()
+
+        # Explicit provider configurations take precedence
         if provider in ("gmail_webhook", "google_webhook", "webhook"):
             return "gmail_webhook"
-        if provider == "brevo":
-            return "brevo"
         if provider == "resend":
             return "resend"
-        if provider in ("smtp", "gmail", "google"):
+        if provider == "brevo":
+            return "brevo"
+        if provider == "smtp":
+            return "smtp"
+        if provider in ("gmail", "google"):
+            webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
+            if webhook_url:
+                return "gmail_webhook"
             return "smtp"
 
-        # Auto-detect Google Apps Script Direct Gmail Webhook
-        if getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL"):
+        # Fallback auto-detection if provider is "none" or unspecified
+        webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
+        if webhook_url:
             return "gmail_webhook"
 
         # Auto-detect Brevo if API key is provided
@@ -309,12 +317,30 @@ class EmailService:
         Catches all network and credential exceptions to ensure operations never crash.
         """
         provider = cls.get_provider_name()
-        from_address = getattr(Config, "EMAIL_FROM", None) or os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+        
+        # Check current_app config with fallback to Config / env
+        app_config = {}
+        try:
+            from flask import current_app
+            if current_app:
+                app_config = current_app.config
+        except Exception:
+            pass
+
+        from_address = (
+            app_config.get("EMAIL_FROM") or
+            getattr(Config, "EMAIL_FROM", None) or
+            os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+        )
 
         try:
             # 1. Google Apps Script Direct Gmail Webhook (HTTPS Port 443 - 100% Direct Google Gmail without SMTP blocks)
             if provider == "gmail_webhook":
-                webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
+                webhook_url = (
+                    app_config.get("GMAIL_WEBHOOK_URL") or
+                    getattr(Config, "GMAIL_WEBHOOK_URL", "") or
+                    os.getenv("GMAIL_WEBHOOK_URL", "")
+                )
                 if not webhook_url:
                     logger.warning("EmailService: GMAIL_WEBHOOK_URL missing.")
                     return cls._log_mock_email(recipient, subject, body_text)
@@ -326,8 +352,17 @@ class EmailService:
                     "html": body_html or f"<p>{body_text}</p>"
                 }
 
-                res = requests.post(webhook_url, json=payload, timeout=12)
+                res = requests.post(webhook_url, json=payload, timeout=15)
                 if res.status_code in (200, 302):
+                    try:
+                        res_json = res.json()
+                        if res_json.get("status") == "error":
+                            error_msg = f"Google Gmail Webhook Error: {res_json.get('message')}"
+                            cls._last_error = error_msg
+                            print(f"[EmailService Google Webhook Error] {error_msg}")
+                            return False
+                    except Exception:
+                        pass
                     print(f"[EMAIL SENT directly via Google Gmail Webhook] To: {recipient} | Subject: {subject}")
                     return True
                 else:

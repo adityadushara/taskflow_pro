@@ -211,3 +211,29 @@ def test_email_service_resend_task_deleted(mock_post, app):
         payload = mock_post.call_args[1]["json"]
         assert payload["to"] == ["owner@example.com"]
         assert "Task Deleted: Redundant Job" in payload["subject"]
+
+@patch("requests.post")
+def test_email_service_gmail_webhook_dispatch(mock_post):
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success"}, content=b'{"status":"success"}')
+
+    class WebhookConfig(Config):
+        TESTING = True
+        EMAIL_PROVIDER = "gmail_webhook"
+        GMAIL_WEBHOOK_URL = "https://script.google.com/macros/s/mock_test/exec"
+
+    webhook_app = create_app(WebhookConfig)
+    with webhook_app.app_context():
+        success = EmailService.send_welcome_email(
+            user={"email": "drew34938@gmail.com", "full_name": "Drew"}
+        )
+        assert success is True
+        assert mock_post.called
+        call_url = mock_post.call_args[0][0]
+        call_kwargs = mock_post.call_args[1]
+        assert call_url == "https://script.google.com/macros/s/mock_test/exec"
+        payload = call_kwargs["json"]
+        assert payload["to"] == "drew34938@gmail.com"
+        assert "Welcome to Hairdrama Task Hub" in payload["subject"]
+        assert "html" in payload
+        assert "body" in payload
+
