@@ -56,7 +56,7 @@ function DashboardContent() {
   }, [viewParam]);
 
   const fetchTasks = useCallback(async (isSilent = false) => {
-    if (!isSilent && tasks.length === 0) {
+    if (!isSilent) {
       setIsInitialLoading(true);
     } else {
       setIsRefreshing(true);
@@ -76,7 +76,7 @@ function DashboardContent() {
       setIsInitialLoading(false);
       setIsRefreshing(false);
     }
-  }, [tasks.length]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,7 +87,7 @@ function DashboardContent() {
     if (user && tasks.length === 0) {
       fetchTasks();
     }
-  }, [user, authLoading, router, fetchTasks, tasks.length]);
+  }, [user?.id, authLoading, router, fetchTasks, tasks.length]);
 
   // Quick Complete toggle from dashboard table with optimistic update
   const handleQuickComplete = async (e: React.MouseEvent, taskId: string, currentStatus: TaskStatus) => {

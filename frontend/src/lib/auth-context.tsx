@@ -62,11 +62,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+
+      if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setUser(null);
+        setSession(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Preserve object identity if user ID and token haven't changed
+      const nextUser = newSession?.user ?? null;
+      setUser((prev) => (prev?.id === nextUser?.id ? prev : nextUser));
+      setSession((prev) => (prev?.access_token === newSession?.access_token ? prev : newSession));
 
       if (event === 'SIGNED_IN') {
-        // If not initialized yet, show loading; otherwise silently refresh in background without reloading UI!
+        // Only run fetch on first initialization, NOT on window focus or token refresh!
         if (!isInitializedRef.current) {
           setIsLoading(true);
           await fetchUserProfile();
@@ -74,15 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isInitializedRef.current = true;
             setIsLoading(false);
           }
-        } else {
-          // Window focus or silent token refresh: update profile quietly in background
-          await fetchUserProfile();
         }
-      } else if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        setUser(null);
-        setSession(null);
-        setIsLoading(false);
       }
     });
 

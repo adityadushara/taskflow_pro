@@ -58,23 +58,26 @@ export default function TaskDetailsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
-  const fetchTaskDetails = useCallback(async () => {
-    setIsLoading(true);
+  const fetchTaskDetails = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const res = await apiClient<Task & { activity?: TaskActivity[] }>(`/tasks/${taskId}`);
       if (res.success && res.data) {
-        setTask(res.data);
-        setEditTitle(res.data.title);
-        setEditDescription(res.data.description || '');
-        setEditPriority(res.data.priority);
-        setEditAssignedTo(res.data.assigned_to || '');
-        setEditAssignedToEmail(res.data.assignee?.email || '');
+        const taskData = res.data;
+        setTask(taskData);
+        setEditTitle((prev) => (prev ? prev : taskData.title));
+        setEditDescription((prev) => (prev ? prev : taskData.description || ''));
+        setEditPriority(taskData.priority);
+        setEditAssignedTo(taskData.assigned_to || '');
+        setEditAssignedToEmail(taskData.assignee?.email || '');
         setEditDueDate(
-          res.data.due_date ? new Date(res.data.due_date).toISOString().slice(0, 16) : ''
+          taskData.due_date ? new Date(taskData.due_date).toISOString().slice(0, 16) : ''
         );
-        if (res.data.activity) {
-          setActivity(res.data.activity);
+        if (taskData.activity) {
+          setActivity(taskData.activity);
         }
       } else {
         setError(res.error?.message || 'Task not found or unauthorized');
@@ -92,13 +95,13 @@ export default function TaskDetailsPage() {
       return;
     }
 
-    if (user && taskId) {
+    if (user && taskId && !task) {
       fetchTaskDetails();
       apiClient<UserProfile[]>('/users').then((res) => {
         if (res.success && res.data) setUsers(res.data);
       });
     }
-  }, [user, authLoading, taskId, router, fetchTaskDetails]);
+  }, [user?.id, authLoading, taskId, router, fetchTaskDetails, task]);
 
   const isCreator = task?.created_by === user?.id;
   const isAssignee = task?.assigned_to === user?.id;
@@ -186,7 +189,7 @@ export default function TaskDetailsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !task) {
     return (
       <AppLayout>
         <div className="py-24 text-center text-slate-400">

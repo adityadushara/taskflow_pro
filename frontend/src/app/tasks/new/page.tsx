@@ -60,10 +60,10 @@ export default function NewTaskPage() {
       }
     };
 
-    if (user) {
+    if (user && users.length === 0) {
       loadUsers();
     }
-  }, [user, authLoading, router]);
+  }, [user?.id, authLoading, router, users.length]);
 
   const validate = () => {
     const errs: Record<string, string> = {};
