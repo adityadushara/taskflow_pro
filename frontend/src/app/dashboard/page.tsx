@@ -32,7 +32,8 @@ function DashboardContent() {
   const { user, profile, isLoading: authLoading } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters - sync initial state with URL query param if present
@@ -49,23 +50,21 @@ function DashboardContent() {
   useEffect(() => {
     if (viewParam && ['all', 'assigned', 'created'].includes(viewParam)) {
       setSelectedView(viewParam);
+    } else if (!viewParam) {
+      setSelectedView('all');
     }
   }, [viewParam]);
 
-  const fetchTasks = useCallback(async () => {
-    setIsLoading(true);
+  const fetchTasks = useCallback(async (isSilent = false) => {
+    if (!isSilent && tasks.length === 0) {
+      setIsInitialLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setError(null);
 
-    const params = new URLSearchParams();
-    if (selectedView === 'assigned') params.append('assigned_to', 'me');
-    if (selectedView === 'created') params.append('created_by', 'me');
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (priorityFilter !== 'all') params.append('priority', priorityFilter);
-    if (searchQuery.trim()) params.append('search', searchQuery.trim());
-    if (sortBy) params.append('sort', sortBy);
-
     try {
-      const res = await apiClient<{ tasks: Task[]; total: number }>(`/tasks?${params.toString()}`);
+      const res = await apiClient<{ tasks: Task[]; total: number }>('/tasks?limit=100&sort=newest');
       if (res.success && res.data) {
         setTasks(res.data.tasks);
       } else {
@@ -74,9 +73,10 @@ function DashboardContent() {
     } catch {
       setError('An unexpected error occurred while communicating with the backend API.');
     } finally {
-      setIsLoading(false);
+      setIsInitialLoading(false);
+      setIsRefreshing(false);
     }
-  }, [selectedView, statusFilter, priorityFilter, searchQuery, sortBy]);
+  }, [tasks.length]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -84,10 +84,10 @@ function DashboardContent() {
       return;
     }
 
-    if (user) {
+    if (user && tasks.length === 0) {
       fetchTasks();
     }
-  }, [user, authLoading, router, fetchTasks]);
+  }, [user, authLoading, router, fetchTasks, tasks.length]);
 
   // Quick Complete toggle from dashboard table with optimistic update
   const handleQuickComplete = async (e: React.MouseEvent, taskId: string, currentStatus: TaskStatus) => {
@@ -107,24 +107,25 @@ function DashboardContent() {
       });
       if (!res.success) {
         // Revert on failure
-        fetchTasks();
+        fetchTasks(true);
       }
     } catch (err) {
       console.error('Failed to update task status:', err);
-      fetchTasks();
+      fetchTasks(true);
     }
   };
 
-  // Switch view tab and reflect in URL
+  // Switch view tab instantly without full router reload
   const handleViewChange = (view: 'all' | 'assigned' | 'created') => {
     setSelectedView(view);
-    const newParams = new URLSearchParams(searchParams?.toString() || '');
+    const newParams = new URLSearchParams(window.location.search);
     if (view === 'all') {
       newParams.delete('view');
     } else {
       newParams.set('view', view);
     }
-    router.replace(`/dashboard${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+    const queryStr = newParams.toString() ? `?${newParams.toString()}` : '';
+    window.history.replaceState(null, '', `/dashboard${queryStr}`);
   };
 
   // Derived Metrics
@@ -156,6 +157,48 @@ function DashboardContent() {
       .slice(0, 4);
   }, [tasks]);
 
+  // Instant in-memory filtered and sorted tasks for 0ms tab and filter switching
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter((t) => {
+        // Tab / View Filter
+        if (selectedView === 'assigned' && t.assigned_to !== user?.id) return false;
+        if (selectedView === 'created' && t.created_by !== user?.id) return false;
+
+        // Status Filter
+        if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+
+        // Priority Filter
+        if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+
+        // Search Filter
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          const matchTitle = t.title?.toLowerCase().includes(q);
+          const matchDesc = t.description?.toLowerCase().includes(q);
+          if (!matchTitle && !matchDesc) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'oldest') {
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        }
+        if (sortBy === 'due_soon') {
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        if (sortBy === 'priority') {
+          const weights: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+          return (weights[b.priority] || 0) - (weights[a.priority] || 0);
+        }
+        // Default newest
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [tasks, selectedView, statusFilter, priorityFilter, searchQuery, sortBy, user?.id]);
+
   const rawName = profile?.full_name?.trim();
   const firstName = rawName && rawName !== user?.email
     ? rawName.split(' ')[0]
@@ -182,11 +225,11 @@ function DashboardContent() {
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => fetchTasks()}
-              title="Refresh tasks"
+              onClick={() => fetchTasks(true)}
+              title="Refresh tasks from server"
               className="p-2 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-xl transition-all cursor-pointer shadow-2xs"
             >
-              <RotateCw className="w-3.5 h-3.5" />
+              <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
             <Link
               href="/tasks/new"
@@ -409,7 +452,7 @@ function DashboardContent() {
           <div className="p-3.5 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Workspace Tasks</h2>
             <span className="text-xs text-slate-500 font-bold bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-              {tasks.length} task{tasks.length === 1 ? '' : 's'}
+              {filteredTasks.length} task{filteredTasks.length === 1 ? '' : 's'}
             </span>
           </div>
 
@@ -420,12 +463,12 @@ function DashboardContent() {
             </div>
           )}
 
-          {isLoading ? (
+          {isInitialLoading && tasks.length === 0 ? (
             <div className="p-16 text-center text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-2" />
-              <p className="text-xs font-semibold text-slate-600">Loading tasks...</p>
+              <p className="text-xs font-semibold text-slate-600">Loading workspace tasks...</p>
             </div>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <div className="p-16 text-center">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-2xs">
                 <CheckSquare className="w-6 h-6" />
@@ -457,7 +500,7 @@ function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {tasks.map((task) => {
+                  {filteredTasks.map((task) => {
                     const isOverdue =
                       task.status !== 'completed' &&
                       task.due_date &&

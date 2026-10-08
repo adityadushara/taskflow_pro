@@ -1,6 +1,7 @@
 import os
 import smtplib
 import logging
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid, formataddr
@@ -42,11 +43,23 @@ class EmailService:
         if not provider:
             provider = Config.EMAIL_PROVIDER or "none"
 
-        provider = str(provider).lower()
-        if provider in ("smtp", "gmail"):
+        provider = str(provider).strip().lower()
+        if provider in ("smtp", "gmail", "google"):
             return "smtp"
-        if provider == "resend" or (provider in ("none", "") and Config.RESEND_API_KEY):
+        if provider == "resend":
             return "resend"
+
+        # Auto-detect SMTP if user and password are provided
+        smtp_user = getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")
+        smtp_pass = getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")
+        if smtp_user and smtp_pass:
+            return "smtp"
+
+        # Auto-detect Resend if API key is provided
+        resend_key = getattr(Config, "RESEND_API_KEY", "") or os.getenv("RESEND_API_KEY", "")
+        if resend_key:
+            return "resend"
+
         return provider
 
     # --------------------------------------------------------------------------
@@ -96,7 +109,17 @@ class EmailService:
         Notifies task creator (and assignee) of successful task creation with all details.
         """
         recipient_email = creator.get("email")
+        if not recipient_email and creator.get("id"):
+            try:
+                from app.services.user_service import UserService
+                user_p = UserService.get_user_by_id(creator["id"])
+                if user_p:
+                    recipient_email = user_p.get("email")
+            except Exception:
+                pass
+
         if not recipient_email:
+            logger.warning(f"EmailService.send_task_created_email: No recipient email found for creator: {creator}")
             return False
 
         task_title = task.get("title", "Untitled Task")
@@ -236,16 +259,49 @@ class EmailService:
         body_html: Optional[str] = None
     ) -> bool:
         """
-        Safely dispatches the email via Resend API, SMTP, or clean console logging.
-        Catches all network and credential exceptions to ensure operations never fail.
+        Dispatches email asynchronously in a daemon thread so the calling HTTP
+        request responds instantly (sub-100ms) without blocking on SMTP or network latency.
+        Runs synchronously in test mode to support mock assertions.
+        """
+        is_testing = getattr(Config, "TESTING", False) or os.getenv("FLASK_ENV") == "testing"
+        try:
+            from flask import has_app_context, current_app
+            if has_app_context():
+                is_testing = is_testing or current_app.config.get("TESTING", False)
+        except Exception:
+            pass
+
+        if is_testing:
+            return cls._dispatch_email_sync(recipient, subject, body_text, body_html)
+
+        # Background daemon thread so HTTP response is returned immediately
+        thread = threading.Thread(
+            target=cls._dispatch_email_sync,
+            args=(recipient, subject, body_text, body_html),
+            daemon=True
+        )
+        thread.start()
+        return True
+
+    @classmethod
+    def _dispatch_email_sync(
+        cls,
+        recipient: str,
+        subject: str,
+        body_text: str,
+        body_html: Optional[str] = None
+    ) -> bool:
+        """
+        Synchronous worker that connects to Resend or SMTP and sends the email.
+        Catches all network and credential exceptions to ensure operations never crash.
         """
         provider = cls.get_provider_name()
         from_address = getattr(Config, "EMAIL_FROM", None) or os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
 
         try:
             # 1. Resend API Integration
-            if provider == "resend" or (Config.RESEND_API_KEY and provider != "smtp"):
-                api_key = Config.RESEND_API_KEY
+            if provider == "resend":
+                api_key = Config.RESEND_API_KEY or os.getenv("RESEND_API_KEY", "")
                 if not api_key:
                     logger.warning("EmailService: Resend API key missing. Logging to console.")
                     return cls._log_mock_email(recipient, subject, body_text)
@@ -328,13 +384,18 @@ class EmailService:
             # 2. SMTP / Gmail Integration
             elif provider in ("smtp", "gmail"):
                 host = getattr(Config, "SMTP_HOST", "smtp.gmail.com") or os.getenv("SMTP_HOST", "smtp.gmail.com")
-                port = int(getattr(Config, "SMTP_PORT", 587) or os.getenv("SMTP_PORT", 587))
-                user = getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")
-                password = getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")
+                try:
+                    port = int(getattr(Config, "SMTP_PORT", 587) or os.getenv("SMTP_PORT", 587))
+                except (ValueError, TypeError):
+                    port = 587
+                user = (getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")).strip()
+                raw_password = (getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")).strip()
+                password = raw_password.replace(" ", "")
                 from_email = from_address if (from_address and "onboarding@resend.dev" not in from_address) else f"Hairdrama Tasks <{user}>"
 
                 if not user or not password:
-                    logger.warning("EmailService: Gmail/SMTP credentials not provided in .env. Logging to console.")
+                    logger.warning("EmailService: Gmail/SMTP credentials not provided in env. Logging to console.")
+                    print("[EmailService Notice] SMTP credentials missing in environment variables. Check Railway / .env settings.")
                     return cls._log_mock_email(recipient, subject, body_text)
 
                 msg = MIMEMultipart("alternative")
@@ -359,17 +420,38 @@ class EmailService:
                 if body_html:
                     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-                with smtplib.SMTP(host, port, timeout=12) as server:
-                    server.starttls()
-                    server.login(user, password)
-                    server.send_message(msg)
-
+                sent = False
                 try:
-                    print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {subject}")
-                except UnicodeEncodeError:
-                    safe_subj = subject.encode("ascii", "replace").decode("ascii")
-                    print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {safe_subj}")
-                return True
+                    if port == 465:
+                        with smtplib.SMTP_SSL(host, 465, timeout=12) as server:
+                            server.login(user, password)
+                            server.send_message(msg)
+                            sent = True
+                    else:
+                        with smtplib.SMTP(host, port, timeout=12) as server:
+                            server.starttls()
+                            server.login(user, password)
+                            server.send_message(msg)
+                            sent = True
+                except Exception as primary_err:
+                    logger.warning(f"[SMTP] Port {port} connection attempt failed: {primary_err}. Attempting port 465 SSL fallback...")
+                    try:
+                        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
+                            server.login(user, password)
+                            server.send_message(msg)
+                            sent = True
+                            logger.info("[SMTP] Successfully sent via port 465 SSL fallback.")
+                    except Exception as fallback_err:
+                        logger.error(f"[SMTP] Port 465 SSL fallback also failed: {fallback_err}")
+                        raise primary_err
+
+                if sent:
+                    try:
+                        print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {subject}")
+                    except UnicodeEncodeError:
+                        safe_subj = subject.encode("ascii", "replace").decode("ascii")
+                        print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {safe_subj}")
+                    return True
 
             # 3. Default Mock / Console Output
             else:
@@ -377,6 +459,7 @@ class EmailService:
 
         except Exception as e:
             logger.error(f"EmailService notice: {str(e)}")
+            print(f"[EmailService Error] Delivery attempt failed: {e}")
             cls._log_mock_email(recipient, subject, body_text)
             return True
 

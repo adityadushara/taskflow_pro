@@ -7,7 +7,12 @@ load_dotenv()
 class Config:
     """Base configuration loaded from environment variables."""
     FLASK_ENV = os.getenv("FLASK_ENV", "development")
-    PORT = int(os.getenv("PORT", 5000))
+    # Safe port parsing
+    try:
+        PORT = int(os.getenv("PORT") or 5000)
+    except (ValueError, TypeError):
+        PORT = 5000
+
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
     
     # Supabase Configuration
@@ -22,7 +27,10 @@ class Config:
     
     # SMTP / Gmail Service Configuration
     SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+    try:
+        SMTP_PORT = int(os.getenv("SMTP_PORT") or 587)
+    except (ValueError, TypeError):
+        SMTP_PORT = 587
     SMTP_USER = os.getenv("SMTP_USER", "")
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     

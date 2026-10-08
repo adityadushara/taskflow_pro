@@ -30,6 +30,18 @@ def get_current_user_profile():
         }
         return success_response(data=fallback_profile)
 
+@users_bp.route("/me/resend-welcome", methods=["POST"])
+@require_auth
+def resend_welcome_email():
+    """
+    POST /api/me/resend-welcome
+    Triggers sending of the welcome email to current authenticated user.
+    """
+    profile = UserService.get_or_sync_profile(g.current_user)
+    from app.services.email_service import EmailService
+    EmailService.send_welcome_email(profile)
+    return success_response(data={"message": f"Welcome email queued for delivery to {profile.get('email')}"})
+
 @users_bp.route("/users", methods=["GET"])
 @require_auth
 def list_users():

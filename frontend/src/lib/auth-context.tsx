@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types';
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isInitializedRef = useRef(false);
 
   const fetchUserProfile = async () => {
     try {
@@ -38,16 +39,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Check active session on mount
+    // Check active session on initial mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile().finally(() => {
-          if (mounted) setIsLoading(false);
+          if (mounted) {
+            isInitializedRef.current = true;
+            setIsLoading(false);
+          }
         });
       } else {
+        isInitializedRef.current = true;
         setIsLoading(false);
       }
     });
@@ -60,12 +65,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
-      if (event === 'SIGNED_IN' && newSession?.user) {
-        setIsLoading(true);
-        await fetchUserProfile();
-        setIsLoading(false);
+      if (event === 'SIGNED_IN') {
+        // If not initialized yet, show loading; otherwise silently refresh in background without reloading UI!
+        if (!isInitializedRef.current) {
+          setIsLoading(true);
+          await fetchUserProfile();
+          if (mounted) {
+            isInitializedRef.current = true;
+            setIsLoading(false);
+          }
+        } else {
+          // Window focus or silent token refresh: update profile quietly in background
+          await fetchUserProfile();
+        }
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
+        setUser(null);
+        setSession(null);
         setIsLoading(false);
       }
     });
