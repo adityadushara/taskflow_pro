@@ -3,27 +3,88 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formatdate, make_msgid, formataddr
 from typing import Dict, Any, Optional
 import requests
 from app.config import Config
+from app.services.email_templates import (
+    render_welcome_email,
+    render_task_created_email,
+    render_task_completed_email,
+    render_task_deleted_email,
+)
 
 logger = logging.getLogger(__name__)
 
 class EmailService:
     """
-    Decoupled email notification service.
-    Handles notifications for task creation, task assignment, and task completion.
-    Isolates task execution so email issues never block or fail database operations.
-    Supports Resend API, SMTP, or clean console logging.
+    Decoupled transactional email notification service.
+    Handles automated notifications for:
+      1. Account creation (Welcome email with onboarding overview)
+      2. Task creation (Task title, priority, due date, description)
+      3. Task completion (Turnaround time, overdue/on-time analytics, metrics)
+      4. Task deletion (Audit notice with task snapshot and deleter info)
+      5. Task assignment (Delegate alerts)
+    Isolates email delivery so transient network or sandbox restrictions never block database operations.
+    Supports Resend API (HTML + Plaintext), SMTP, and clean console logging fallback.
     """
 
     @classmethod
     def get_provider_name(cls) -> str:
-        provider = (Config.EMAIL_PROVIDER or "none").lower()
-        if provider == "none" and Config.RESEND_API_KEY:
+        provider = None
+        try:
+            from flask import has_app_context, current_app
+            if has_app_context():
+                provider = current_app.config.get("EMAIL_PROVIDER")
+        except Exception:
+            pass
+
+        if not provider:
+            provider = Config.EMAIL_PROVIDER or "none"
+
+        provider = str(provider).lower()
+        if provider in ("smtp", "gmail"):
+            return "smtp"
+        if provider == "resend" or (provider in ("none", "") and Config.RESEND_API_KEY):
             return "resend"
         return provider
 
+    # --------------------------------------------------------------------------
+    # 1. ACCOUNT CREATION / WELCOME EMAIL
+    # --------------------------------------------------------------------------
+    @classmethod
+    def send_welcome_email(
+        cls,
+        user: Dict[str, Any],
+        temporary_password: Optional[str] = None
+    ) -> bool:
+        """
+        Sends a personalized, creative welcome email upon user account creation.
+        """
+        recipient_email = user.get("email")
+        if not recipient_email:
+            logger.warning("EmailService.send_welcome_email: No recipient email provided.")
+            return False
+
+        user_name = user.get("full_name") or user.get("name") or recipient_email.split("@")[0] or "there"
+        subject = f"Welcome to Hairdrama Task Hub, {user_name}"
+
+        html_content, text_content = render_welcome_email(
+            user=user,
+            frontend_url=Config.FRONTEND_URL,
+            temporary_password=temporary_password
+        )
+
+        return cls._dispatch_email(
+            recipient=recipient_email,
+            subject=subject,
+            body_text=text_content,
+            body_html=html_content
+        )
+
+    # --------------------------------------------------------------------------
+    # 2. TASK CREATED EMAIL
+    # --------------------------------------------------------------------------
     @classmethod
     def send_task_created_email(
         cls,
@@ -32,29 +93,32 @@ class EmailService:
         assignee: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Notifies task creator of successful task creation.
+        Notifies task creator (and assignee) of successful task creation with all details.
         """
         recipient_email = creator.get("email")
         if not recipient_email:
             return False
 
-        creator_name = creator.get("full_name") or creator.get("email", "").split("@")[0] or "there"
-        assignee_label = (assignee.get("full_name") or assignee.get("email")) if assignee else "Unassigned"
-        due_label = task.get("due_date") or "No deadline set"
+        task_title = task.get("title", "Untitled Task")
+        subject = f"Task Created: {task_title}"
 
-        subject = f"[Hairdrama Task Manager] Task Created: {task.get('title')}"
-        message = (
-            f"Hello {creator_name},\n\n"
-            f"Your new task has been successfully created in Hairdrama Task Hub:\n\n"
-            f"• Title: {task.get('title')}\n"
-            f"• Priority: {str(task.get('priority', 'medium')).upper()}\n"
-            f"• Due Date: {due_label}\n"
-            f"• Assignee: {assignee_label}\n\n"
-            f"You can view, edit, or track progress directly in your workspace dashboard.\n"
+        html_content, text_content = render_task_created_email(
+            task=task,
+            creator=creator,
+            assignee=assignee,
+            frontend_url=Config.FRONTEND_URL
         )
 
-        return cls._dispatch_email(recipient_email, subject, message)
+        return cls._dispatch_email(
+            recipient=recipient_email,
+            subject=subject,
+            body_text=text_content,
+            body_html=html_content
+        )
 
+    # --------------------------------------------------------------------------
+    # 3. TASK ASSIGNED EMAIL
+    # --------------------------------------------------------------------------
     @classmethod
     def send_task_assigned_email(
         cls,
@@ -63,7 +127,7 @@ class EmailService:
         assigner: Dict[str, Any]
     ) -> bool:
         """
-        Notifies an assignee when a task has been assigned to them.
+        Notifies an assignee when a task has been assigned or delegated to them.
         """
         recipient_email = assignee.get("email")
         if not recipient_email:
@@ -72,20 +136,27 @@ class EmailService:
 
         assignee_name = assignee.get("full_name") or recipient_email.split("@")[0] or "there"
         assigner_name = assigner.get("full_name") or assigner.get("email", "").split("@")[0] or "A teammate"
-        due_label = task.get("due_date") or "No deadline set"
+        task_title = task.get("title", "Untitled Task")
+        subject = f"Task Assigned: {task_title}"
 
-        subject = f"[Hairdrama Task Manager] New Task Assigned: {task.get('title')}"
-        message = (
-            f"Hello {assignee_name},\n\n"
-            f"{assigner_name} has assigned a new task to you in Hairdrama Task Hub:\n\n"
-            f"• Title: {task.get('title')}\n"
-            f"• Priority: {str(task.get('priority', 'medium')).upper()}\n"
-            f"• Due Date: {due_label}\n\n"
-            f"Log in to your dashboard to review and update this task.\n"
+        # Render styled task card for assignee
+        html_content, text_content = render_task_created_email(
+            task=task,
+            creator=assigner,
+            assignee=assignee,
+            frontend_url=Config.FRONTEND_URL
         )
 
-        return cls._dispatch_email(recipient_email, subject, message)
+        return cls._dispatch_email(
+            recipient=recipient_email,
+            subject=subject,
+            body_text=text_content,
+            body_html=html_content
+        )
 
+    # --------------------------------------------------------------------------
+    # 4. TASK COMPLETED EMAIL (WITH METRICS, TURNAROUND & OVERDUE AUDIT)
+    # --------------------------------------------------------------------------
     @classmethod
     def send_task_completed_email(
         cls,
@@ -94,41 +165,99 @@ class EmailService:
         recipient: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Notifies relevant stakeholders (creator/assignee) when a task is completed.
+        Notifies stakeholders when a task is completed.
+        Includes complete turnaround duration, overdue analysis, and performance scorecard.
         """
         if not recipient or not recipient.get("email"):
             return False
 
         recipient_email = recipient.get("email")
-        recipient_name = recipient.get("full_name") or recipient_email.split("@")[0] or "there"
-        completer_name = completed_by.get("full_name") or completed_by.get("email", "").split("@")[0] or "A collaborator"
+        task_title = task.get("title", "Untitled Task")
+        subject = f"Task Completed: {task_title} (Performance Summary)"
 
-        subject = f"[Hairdrama Task Manager] Task Completed: {task.get('title')}"
-        message = (
-            f"Hello {recipient_name},\n\n"
-            f"Great news! The task '{task.get('title')}' was marked as COMPLETED by {completer_name}.\n\n"
-            f"• Task: {task.get('title')}\n"
-            f"• Priority: {str(task.get('priority', 'medium')).upper()}\n"
-            f"• Status: COMPLETED\n\n"
-            f"Activity history has been permanently recorded in Hairdrama Task Hub.\n"
+        html_content, text_content = render_task_completed_email(
+            task=task,
+            completed_by=completed_by,
+            recipient=recipient,
+            frontend_url=Config.FRONTEND_URL
         )
 
-        return cls._dispatch_email(recipient_email, subject, message)
+        return cls._dispatch_email(
+            recipient=recipient_email,
+            subject=subject,
+            body_text=text_content,
+            body_html=html_content
+        )
 
+    # --------------------------------------------------------------------------
+    # 5. TASK DELETED EMAIL
+    # --------------------------------------------------------------------------
     @classmethod
-    def _dispatch_email(cls, recipient: str, subject: str, body: str) -> bool:
+    def send_task_deleted_email(
+        cls,
+        task: Dict[str, Any],
+        deleted_by: Dict[str, Any],
+        recipient: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
-        Safely dispatches the email via Resend, SMTP, or logs to console.
-        Catches all network and credential exceptions to never crash task logic.
+        Notifies creator and assignees when a task is permanently removed.
+        Provides immutable snapshot and deleter details.
+        """
+        if not recipient or not recipient.get("email"):
+            return False
+
+        recipient_email = recipient.get("email")
+        task_title = task.get("title", "Untitled Task")
+        subject = f"Task Deleted: {task_title}"
+
+        html_content, text_content = render_task_deleted_email(
+            task=task,
+            deleted_by=deleted_by,
+            recipient=recipient,
+            frontend_url=Config.FRONTEND_URL
+        )
+
+        return cls._dispatch_email(
+            recipient=recipient_email,
+            subject=subject,
+            body_text=text_content,
+            body_html=html_content
+        )
+
+    # --------------------------------------------------------------------------
+    # DISPATCH LOGIC (RESEND / SMTP / CONSOLE)
+    # --------------------------------------------------------------------------
+    @classmethod
+    def _dispatch_email(
+        cls,
+        recipient: str,
+        subject: str,
+        body_text: str,
+        body_html: Optional[str] = None
+    ) -> bool:
+        """
+        Safely dispatches the email via Resend API, SMTP, or clean console logging.
+        Catches all network and credential exceptions to ensure operations never fail.
         """
         provider = cls.get_provider_name()
+        from_address = getattr(Config, "EMAIL_FROM", None) or os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+
         try:
             # 1. Resend API Integration
             if provider == "resend" or (Config.RESEND_API_KEY and provider != "smtp"):
                 api_key = Config.RESEND_API_KEY
                 if not api_key:
                     logger.warning("EmailService: Resend API key missing. Logging to console.")
-                    return cls._log_mock_email(recipient, subject, body)
+                    return cls._log_mock_email(recipient, subject, body_text)
+
+                payload: Dict[str, Any] = {
+                    "from": from_address,
+                    "to": [recipient],
+                    "subject": subject,
+                    "text": body_text,
+                }
+                if body_html:
+                    payload["html"] = body_html
 
                 res = requests.post(
                     "https://api.resend.com/emails",
@@ -136,60 +265,130 @@ class EmailService:
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
                     },
-                    json={
-                        "from": os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>"),
-                        "to": [recipient],
-                        "subject": subject,
-                        "text": body,
-                    },
-                    timeout=5
+                    json=payload,
+                    timeout=10
                 )
+
                 if res.status_code in (200, 201):
-                    print(f"📧 [EMAIL SENT via Resend] To: {recipient} | Subject: {subject}")
+                    res_data = res.json() if res.content else {}
+                    email_id = res_data.get("id", "ok")
+                    logger.info(f"[EmailService Resend] ID: {email_id} | To: {recipient}")
+                    try:
+                        print(f"[EMAIL SENT via Resend] ID: {email_id} | To: {recipient} | Subject: {subject}")
+                    except UnicodeEncodeError:
+                        safe_subj = subject.encode("ascii", "replace").decode("ascii")
+                        print(f"[EMAIL SENT via Resend] ID: {email_id} | To: {recipient} | Subject: {safe_subj}")
                     return True
+                elif res.status_code == 403 and "testing emails" in res.text:
+                    # Sandbox testing restriction notice: Resend only permits sending to account owner
+                    import re
+                    match = re.search(r"\(([^)]+@[^)]+)\)", res.text)
+                    authorized_owner = match.group(1) if match else os.getenv("RESEND_DEV_FALLBACK_TO", "adityadusharaa@gmail.com")
+
+                    if authorized_owner and recipient.strip().lower() != authorized_owner.strip().lower():
+                        print(f"[Resend Sandbox] Recipient '{recipient}' blocked by test domain. Forwarding to verified owner '{authorized_owner}'...")
+                        forward_subject = f"[Sandbox for {recipient}] {subject}"
+                        banner = (
+                            f"<div style='background-color:#fef3c7;border:1px solid #f59e0b;padding:14px 18px;margin-bottom:20px;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;'>"
+                            f"⚠️ <strong>Resend Sandbox Notice:</strong> This notification was intended for <strong>{recipient}</strong>. "
+                            f"Because <code>onboarding@resend.dev</code> is active, Resend requires domain verification to deliver to external addresses. "
+                            f"It was delivered to your registered email (<code>{authorized_owner}</code>) for development preview.<br>"
+                            f"<span style='font-size:11px;color:#b45309;'>To deliver directly to {recipient}, verify your domain at <a href='https://resend.com/domains' style='color:#b45309;font-weight:700;'>resend.com/domains</a>.</span>"
+                            f"</div>"
+                        )
+                        forward_html = banner + (body_html or f"<p>{body_text}</p>")
+                        forward_text = f"[Sandbox Notice: Originally destined for {recipient}]\n\n{body_text}"
+
+                        retry_res = requests.post(
+                            "https://api.resend.com/emails",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json",
+                            },
+                            json={
+                                "from": from_address,
+                                "to": [authorized_owner],
+                                "subject": forward_subject,
+                                "text": forward_text,
+                                "html": forward_html
+                            },
+                            timeout=10
+                        )
+                        if retry_res.status_code in (200, 201):
+                            retry_data = retry_res.json() if retry_res.content else {}
+                            print(f"[EMAIL SENT via Sandbox Forward] ID: {retry_data.get('id')} | Intended for: {recipient} -> Delivered to: {authorized_owner}")
+                            return True
+
+                    print(f"[Resend Sandbox Restriction] Delivery restricted to verified owner account. Notice: {res.text}")
+                    return cls._log_mock_email(recipient, subject, body_text)
                 else:
                     logger.warning(f"EmailService Resend response ({res.status_code}): {res.text}")
-                    return cls._log_mock_email(recipient, subject, body)
+                    return cls._log_mock_email(recipient, subject, body_text)
 
-            # 2. SMTP Integration (e.g. Gmail / SendGrid / Custom SMTP)
-            elif provider == "smtp":
-                host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-                port = int(os.getenv("SMTP_PORT", 587))
-                user = os.getenv("SMTP_USER", "")
-                password = os.getenv("SMTP_PASSWORD", "")
-                from_email = os.getenv("EMAIL_FROM", user or "tasks@hairdrama.com")
+            # 2. SMTP / Gmail Integration
+            elif provider in ("smtp", "gmail"):
+                host = getattr(Config, "SMTP_HOST", "smtp.gmail.com") or os.getenv("SMTP_HOST", "smtp.gmail.com")
+                port = int(getattr(Config, "SMTP_PORT", 587) or os.getenv("SMTP_PORT", 587))
+                user = getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")
+                password = getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")
+                from_email = from_address if (from_address and "onboarding@resend.dev" not in from_address) else f"Hairdrama Tasks <{user}>"
 
                 if not user or not password:
-                    logger.warning("EmailService: SMTP credentials not provided. Logging to console.")
-                    return cls._log_mock_email(recipient, subject, body)
+                    logger.warning("EmailService: Gmail/SMTP credentials not provided in .env. Logging to console.")
+                    return cls._log_mock_email(recipient, subject, body_text)
 
-                msg = MIMEMultipart()
-                msg["From"] = from_email
+                msg = MIMEMultipart("alternative")
+                # RFC 5322 Standard Headers
+                msg["Date"] = formatdate(localtime=True)
+                msg["Message-ID"] = make_msgid(domain="gmail.com")
+                
+                # RFC 2047 Encoded From and Reply-To
+                sender_title = "Hairdrama Task Hub"
+                msg["From"] = formataddr((sender_title, user))
+                msg["Reply-To"] = formataddr((sender_title, user))
                 msg["To"] = recipient
                 msg["Subject"] = subject
-                msg.attach(MIMEText(body, "plain"))
 
-                with smtplib.SMTP(host, port, timeout=5) as server:
+                # Anti-Spam Transactional Identifiers
+                msg["Auto-Submitted"] = "auto-generated"
+                msg["X-Auto-Response-Suppress"] = "All"
+                msg["Precedence"] = "bulk"
+
+                # MIME alternative: plain text first, HTML second
+                msg.attach(MIMEText(body_text, "plain", "utf-8"))
+                if body_html:
+                    msg.attach(MIMEText(body_html, "html", "utf-8"))
+
+                with smtplib.SMTP(host, port, timeout=12) as server:
                     server.starttls()
                     server.login(user, password)
                     server.send_message(msg)
 
-                print(f"📧 [EMAIL SENT via SMTP] To: {recipient} | Subject: {subject}")
+                try:
+                    print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {subject}")
+                except UnicodeEncodeError:
+                    safe_subj = subject.encode("ascii", "replace").decode("ascii")
+                    print(f"[EMAIL SENT via Gmail/SMTP] To: {recipient} | Subject: {safe_subj}")
                 return True
 
             # 3. Default Mock / Console Output
             else:
-                return cls._log_mock_email(recipient, subject, body)
+                return cls._log_mock_email(recipient, subject, body_text)
 
         except Exception as e:
-            logger.error(f"EmailService: Notification delivery notice: {str(e)}")
-            cls._log_mock_email(recipient, subject, body)
+            logger.error(f"EmailService notice: {str(e)}")
+            cls._log_mock_email(recipient, subject, body_text)
             return True
 
     @classmethod
     def _log_mock_email(cls, recipient: str, subject: str, body: str) -> bool:
-        """Clean console output for development and verification."""
+        """Clean console output for development and sandbox verification."""
         separator = "=" * 60
-        print(f"\n{separator}\n📧 [HAIRDRAMA EMAIL NOTIFICATION]\nTo: {recipient}\nSubject: {subject}\n\n{body}\n{separator}\n")
+        try:
+            print(f"\n{separator}\n[HAIRDRAMA EMAIL NOTIFICATION]\nTo: {recipient}\nSubject: {subject}\n\n{body}\n{separator}\n")
+        except UnicodeEncodeError:
+            safe_body = body.encode("ascii", "replace").decode("ascii")
+            safe_subj = subject.encode("ascii", "replace").decode("ascii")
+            print(f"\n{separator}\n[HAIRDRAMA EMAIL NOTIFICATION]\nTo: {recipient}\nSubject: {safe_subj}\n\n{safe_body}\n{separator}\n")
         logger.info(f"[EmailService Mock] Dispatched to {recipient} | {subject}")
         return True

@@ -18,6 +18,13 @@ class Config:
     # Email Service Configuration
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "none")
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+    
+    # SMTP / Gmail Service Configuration
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     
     @classmethod
     def validate(cls):

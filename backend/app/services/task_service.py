@@ -380,27 +380,54 @@ class TaskService:
         return cls.update_task(task_id, current_user, {"status": "completed"})
 
     @classmethod
-    def delete_task(cls, task_id: str, current_user_id: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    def delete_task(
+        cls,
+        task_id: str,
+        current_user_id: Optional[str] = None,
+        current_user: Optional[Dict[str, Any]] = None
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
         Deletes a task.
         Only the creator of the task can perform deletion.
+        Dispatches confirmation emails to creator and assignee.
         """
-        if not cls.is_valid_uuid(task_id):
+        effective_user_id = (current_user.get("id") if current_user else None) or current_user_id
+        if not effective_user_id or not cls.is_valid_uuid(task_id):
             return False, {"code": "INVALID_ID", "message": "Invalid task ID format."}
 
         supabase = get_supabase_client()
-        res = supabase.table("tasks").select("id, created_by, title").eq("id", task_id).execute()
+        res = supabase.table("tasks").select("*").eq("id", task_id).execute()
         if not res.data or len(res.data) == 0:
             return False, {"code": "TASK_NOT_FOUND", "message": "Task not found."}
 
         task = res.data[0]
-        if task["created_by"] != current_user_id:
+        if task["created_by"] != effective_user_id:
             return False, {"code": "FORBIDDEN", "message": "Only the task creator can delete this task."}
 
         # Log deleted activity prior to deletion
-        cls.log_activity(task_id, current_user_id, "task_deleted", {"title": task["title"]})
+        cls.log_activity(task_id, effective_user_id, "task_deleted", {"title": task.get("title", "")})
 
+        # Perform deletion
         supabase.table("tasks").delete().eq("id", task_id).execute()
+
+        # Send deletion notification emails
+        try:
+            deleter_user = current_user or UserService.get_user_by_id(effective_user_id) or {"id": effective_user_id}
+            creator_profile = UserService.get_user_by_id(task["created_by"])
+            
+            # Notify creator
+            if creator_profile:
+                EmailService.send_task_deleted_email(task=task, deleted_by=deleter_user, recipient=creator_profile)
+
+            # Notify assignee if assigned to someone other than creator
+            assignee_id = task.get("assigned_to")
+            if assignee_id and assignee_id != task["created_by"]:
+                assignee_profile = UserService.get_user_by_id(assignee_id)
+                if assignee_profile:
+                    EmailService.send_task_deleted_email(task=task, deleted_by=deleter_user, recipient=assignee_profile)
+        except Exception as email_err:
+            print(f"[TaskService Notice] Failed to dispatch task deletion email: {email_err}")
+
         return True, None
 
     @classmethod

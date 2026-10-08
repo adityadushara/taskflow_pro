@@ -212,4 +212,27 @@ def test_task_completion_triggers_completion_email(client):
         assert response.status_code == 200
         assert mock_completed_email.called is True
 
+def test_task_deletion_triggers_deleted_email(client):
+    """Deleting a task dispatches task deleted email."""
+    existing_task = {
+        "id": TASK_ID,
+        "title": "Clean Old Archives",
+        "status": "todo",
+        "priority": "low",
+        "created_by": USER_1_ID,
+        "assigned_to": USER_2_ID
+    }
+    with patch("app.services.task_service.get_supabase_client") as mock_supabase, \
+         patch("app.services.task_service.TaskService.log_activity"), \
+         patch("app.services.user_service.UserService.get_user_by_id") as mock_get_user, \
+         patch("app.services.email_service.EmailService.send_task_deleted_email") as mock_delete_email:
+
+        mock_supabase.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [existing_task]
+        mock_supabase.return_value.table.return_value.delete.return_value.eq.return_value.execute.return_value.data = [existing_task]
+        mock_get_user.return_value = {"id": USER_1_ID, "email": "creator@example.com", "full_name": "Creator"}
+
+        response = client.delete(f"/api/tasks/{TASK_ID}", headers=auth_headers(USER_1_ID))
+        assert response.status_code == 200
+        assert mock_delete_email.called is True
+
 

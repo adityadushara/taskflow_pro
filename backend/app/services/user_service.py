@@ -1,8 +1,11 @@
 import uuid
 from typing import Dict, Any, List, Optional
 from app.utils.supabase_client import get_supabase_client
+from app.services.email_service import EmailService
 
 class UserService:
+    _WELCOMED_USER_IDS = set()
+
     @staticmethod
     def is_valid_uuid(val: str) -> bool:
         """Validate if a string is a valid UUID."""
@@ -17,6 +20,7 @@ class UserService:
         """
         Retrieves user profile from the database, or inserts a new one if it does
         not yet exist (e.g. freshly authenticated via Google OAuth).
+        Dispatches welcome email for newly created accounts.
         """
         user_id = current_user.get("id")
         email = current_user.get("email", "")
@@ -27,20 +31,35 @@ class UserService:
         supabase = get_supabase_client()
         res = supabase.table("profiles").select("*").eq("id", user_id).execute()
 
-        if res.data and len(res.data) > 0:
-            return res.data[0]
+        is_new_user = not res.data or len(res.data) == 0
 
-        # Insert new profile record
-        new_profile = {
-            "id": user_id,
-            "email": email,
-            "full_name": full_name,
-            "avatar_url": avatar_url
-        }
-        insert_res = supabase.table("profiles").upsert(new_profile).execute()
-        if insert_res.data and len(insert_res.data) > 0:
-            return insert_res.data[0]
-        return new_profile
+        if not is_new_user:
+            profile = res.data[0]
+        else:
+            # Insert new profile record
+            new_profile = {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+                "avatar_url": avatar_url
+            }
+            insert_res = supabase.table("profiles").upsert(new_profile).execute()
+            profile = insert_res.data[0] if (insert_res.data and len(insert_res.data) > 0) else new_profile
+
+        # Dispatch welcome email once per user
+        if is_new_user or (not meta.get("welcome_email_sent") and user_id not in cls._WELCOMED_USER_IDS):
+            cls._WELCOMED_USER_IDS.add(user_id)
+            try:
+                EmailService.send_welcome_email(profile)
+                if user_id:
+                    supabase.auth.admin.update_user_by_id(
+                        user_id,
+                        {"user_metadata": {**meta, "welcome_email_sent": True}}
+                    )
+            except Exception as e:
+                print(f"[UserService Notice] Welcome email dispatch notice: {e}")
+
+        return profile
 
     @classmethod
     def list_users(cls) -> List[Dict[str, Any]]:
@@ -112,27 +131,37 @@ class UserService:
         # 2. Provision invited user account
         try:
             display_name = clean_email.split("@")[0].replace(".", " ").title()
+            temp_password = f"Welcome_{uuid.uuid4().hex[:10]}!"
             auth_res = supabase.auth.admin.create_user({
                 "email": clean_email,
-                "password": f"Welcome_{uuid.uuid4().hex[:10]}!",
+                "password": temp_password,
                 "email_confirm": True,
                 "user_metadata": {
                     "full_name": display_name,
                     "avatar_url": "",
+                    "welcome_email_sent": True
                 }
             })
             if auth_res.user:
                 user_id = str(auth_res.user.id)
+                cls._WELCOMED_USER_IDS.add(user_id)
+                
                 # Check profile trigger created record
                 res = supabase.table("profiles").select("id, email, full_name, avatar_url").eq("id", user_id).execute()
-                if res.data and len(res.data) > 0:
-                    return res.data[0]
-                return {
+                new_user_dict = res.data[0] if (res.data and len(res.data) > 0) else {
                     "id": user_id,
                     "email": clean_email,
                     "full_name": display_name,
                     "avatar_url": ""
                 }
+
+                # Dispatch welcome onboarding email
+                try:
+                    EmailService.send_welcome_email(new_user_dict, temporary_password=temp_password)
+                except Exception as email_err:
+                    print(f"[UserService Notice] Failed to send welcome email to provisioned user: {email_err}")
+
+                return new_user_dict
         except Exception as e:
             print(f"[UserService Notice] Provisioning user for {clean_email}: {e}")
             fallback = cls.get_user_by_email(clean_email)

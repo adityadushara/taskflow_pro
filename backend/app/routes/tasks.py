@@ -128,7 +128,11 @@ def delete_task(task_id):
     DELETE /api/tasks/<task_id>
     Deletes task (creator only).
     """
-    success, error = TaskService.delete_task(task_id=task_id, current_user_id=g.current_user["id"])
+    success, error = TaskService.delete_task(
+        task_id=task_id,
+        current_user_id=g.current_user["id"],
+        current_user=g.current_user
+    )
     if error:
         status_code = 400
         if error["code"] == "TASK_NOT_FOUND":

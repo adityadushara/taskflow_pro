@@ -66,3 +66,23 @@ def search_users():
             status_code=500,
             details=str(e)
         )
+
+@users_bp.route("/users/welcome", methods=["POST"])
+@require_auth
+def send_user_welcome_email():
+    """
+    POST /api/users/welcome
+    Explicitly dispatches the onboarding welcome email for the current authenticated user.
+    """
+    try:
+        from app.services.email_service import EmailService
+        profile = UserService.get_or_sync_profile(g.current_user)
+        EmailService.send_welcome_email(profile)
+        return success_response(data={"welcome_email_sent": True, "recipient": profile.get("email")})
+    except Exception as e:
+        return error_response(
+            code="WELCOME_EMAIL_FAILED",
+            message="Failed to send welcome email",
+            status_code=500,
+            details=str(e)
+        )
