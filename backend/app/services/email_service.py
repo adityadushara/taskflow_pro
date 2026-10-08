@@ -458,10 +458,16 @@ class EmailService:
                 return cls._log_mock_email(recipient, subject, body_text)
 
         except Exception as e:
+            cls._last_error = str(e)
             logger.error(f"EmailService notice: {str(e)}")
             print(f"[EmailService Error] Delivery attempt failed: {e}")
             cls._log_mock_email(recipient, subject, body_text)
-            return True
+            return False
+
+    @classmethod
+    def get_last_error(cls) -> Optional[str]:
+        """Returns the most recent error message encountered during email dispatch."""
+        return getattr(cls, "_last_error", None)
 
     @classmethod
     def _log_mock_email(cls, recipient: str, subject: str, body: str) -> bool:

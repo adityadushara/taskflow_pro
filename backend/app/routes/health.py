@@ -44,3 +44,39 @@ def health_email():
         "smtp_host": Config.SMTP_HOST if provider == "smtp" else None,
         "smtp_user": masked_user if provider == "smtp" else None,
     }), 200
+
+@health_bp.route("/health/test-send", methods=["GET", "POST"])
+def health_test_send():
+    """Diagnostic endpoint to test email dispatch and return full network trace."""
+    recipient = request.args.get("to") or Config.SMTP_USER or "drew34938@gmail.com"
+    provider = EmailService.get_provider_name()
+    try:
+        success = EmailService._dispatch_email_sync(
+            recipient=recipient,
+            subject="Railway Test Email",
+            body_text="Testing transactional email delivery from Hairdrama Tasks backend.",
+            body_html="<p>Testing transactional email delivery from <strong>Hairdrama Tasks backend</strong>.</p>"
+        )
+        if success:
+            return jsonify({
+                "status": "sent",
+                "provider": provider,
+                "recipient": recipient
+            }), 200
+        else:
+            return jsonify({
+                "status": "failed",
+                "provider": provider,
+                "recipient": recipient,
+                "error": EmailService.get_last_error() or "Email provider rejected or failed to deliver message"
+            }), 500
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "provider": provider,
+            "recipient": recipient,
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
