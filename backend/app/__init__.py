@@ -8,11 +8,21 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Configure CORS - Restrict allowed origins in accordance with security requirements
-    # Defaults to http://localhost:3000 in development, configurable via FRONTEND_URL
+    # Configure CORS - Allow frontend URLs (handles comma-separated strings & trailing slashes)
+    allowed_origins = [
+        "http://localhost:3000",
+        "https://task-management-app-five-pi.vercel.app"
+    ]
+    configured_frontend = app.config.get("FRONTEND_URL")
+    if configured_frontend:
+        for origin in configured_frontend.split(","):
+            clean_origin = origin.strip().rstrip("/")
+            if clean_origin and clean_origin not in allowed_origins:
+                allowed_origins.append(clean_origin)
+
     CORS(
         app,
-        resources={r"/api/*": {"origins": app.config.get("FRONTEND_URL", "http://localhost:3000")}},
+        resources={r"/api/*": {"origins": allowed_origins}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
