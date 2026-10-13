@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- HAIRDRAMA TASK MANAGER - COMPLETE DATABASE SCHEMA
 -- Run this script in the Supabase SQL Editor:
--- https://supabase.com/dashboard/project/your-supabase-project-id/sql
+-- https://supabase.com/dashboard/project/<your-project-id>/sql
 -- ==============================================================================
 
 -- 1. Enable UUID Extensions

@@ -65,7 +65,7 @@ PORT=5000
 FRONTEND_URL=http://localhost:3000
 
 # Supabase Server Settings
-SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Direct Gmail Transactional Email Settings
@@ -115,7 +115,7 @@ npm install
 ### 3. Check Frontend Environment Configuration (`.env.local`)
 Verify that `frontend/.env.local` contains:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
