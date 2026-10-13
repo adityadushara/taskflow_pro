@@ -14,9 +14,9 @@ from app.services.email_templates import (
 
 class TestConfig(Config):
     TESTING = True
-    EMAIL_PROVIDER = "resend"
-    RESEND_API_KEY = "re_test_key_mock_12345"
-    EMAIL_FROM = "Hairdrama Tasks <onboarding@resend.dev>"
+    EMAIL_PROVIDER = "gmail_webhook"
+    GMAIL_WEBHOOK_URL = "https://script.google.com/macros/s/mock_test/exec"
+    EMAIL_FROM = "Hairdrama Tasks <drew34938@gmail.com>"
     FRONTEND_URL = "http://localhost:3000"
 
 @pytest.fixture
@@ -91,7 +91,7 @@ def test_render_task_created_email():
     task = {
         "id": "123e4567-e89b-12d3-a456-426614174000",
         "title": "Build Email Notifications",
-        "description": "Integrate Resend transactional emails with templates.",
+        "description": "Integrate Gmail transactional emails with templates.",
         "priority": "high",
         "due_date": "2026-10-15T18:00:00+00:00",
         "created_at": "2026-10-08T10:00:00+00:00"
@@ -101,7 +101,7 @@ def test_render_task_created_email():
 
     html_out, text_out = render_task_created_email(task, creator, assignee)
     assert "Build Email Notifications" in html_out
-    assert "Integrate Resend transactional emails" in html_out
+    assert "Integrate Gmail transactional emails" in html_out
     assert "HIGH" in html_out
     assert "Aditya" in html_out
     assert "Dev" in html_out
@@ -148,11 +148,11 @@ def test_render_task_deleted_email():
     assert "Deprecated Pipeline" in text_out
 
 # ==============================================================================
-# 3. EmailService Dispatch Tests with Mock Resend
+# 3. EmailService Dispatch Tests with Direct Gmail Webhook
 # ==============================================================================
 @patch("requests.post")
-def test_email_service_resend_dispatch(mock_post, app):
-    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "resend_123"}, content=b"{}")
+def test_email_service_gmail_welcome_dispatch(mock_post, app):
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success"}, content=b'{"status":"success"}')
 
     with app.app_context():
         success = EmailService.send_welcome_email(
@@ -162,14 +162,14 @@ def test_email_service_resend_dispatch(mock_post, app):
         assert mock_post.called
         call_kwargs = mock_post.call_args[1]
         payload = call_kwargs["json"]
-        assert payload["to"] == ["tester@example.com"]
+        assert payload["to"] == "tester@example.com"
         assert "Welcome to Hairdrama Task Hub" in payload["subject"]
         assert "html" in payload
-        assert "text" in payload
+        assert "body" in payload
 
 @patch("requests.post")
-def test_email_service_resend_task_completed(mock_post, app):
-    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "resend_456"}, content=b"{}")
+def test_email_service_gmail_task_completed(mock_post, app):
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success"}, content=b'{"status":"success"}')
 
     with app.app_context():
         task = {
@@ -187,13 +187,13 @@ def test_email_service_resend_task_completed(mock_post, app):
         assert success is True
         assert mock_post.called
         payload = mock_post.call_args[1]["json"]
-        assert payload["to"] == ["bob@example.com"]
+        assert payload["to"] == "bob@example.com"
         assert "Task Completed: Frontend Redesign" in payload["subject"]
-        assert "2 hours" in payload["text"]
+        assert "2 hours" in payload["body"]
 
 @patch("requests.post")
-def test_email_service_resend_task_deleted(mock_post, app):
-    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "resend_789"}, content=b"{}")
+def test_email_service_gmail_task_deleted(mock_post, app):
+    mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success"}, content=b'{"status":"success"}')
 
     with app.app_context():
         task = {
@@ -209,7 +209,7 @@ def test_email_service_resend_task_deleted(mock_post, app):
         )
         assert success is True
         payload = mock_post.call_args[1]["json"]
-        assert payload["to"] == ["owner@example.com"]
+        assert payload["to"] == "owner@example.com"
         assert "Task Deleted: Redundant Job" in payload["subject"]
 
 @patch("requests.post")

@@ -20,12 +20,10 @@ class Config:
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
     
-    # Email Service Configuration
-    EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "none")
-    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-    BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+    # Email Service Configuration (Direct Gmail Integration)
+    EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "gmail")
     GMAIL_WEBHOOK_URL = os.getenv("GMAIL_WEBHOOK_URL", "")
-    EMAIL_FROM = os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "Hairdrama Tasks <drew34938@gmail.com>")
     
     # SMTP / Gmail Service Configuration
     SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")

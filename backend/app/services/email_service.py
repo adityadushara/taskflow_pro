@@ -19,15 +19,15 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     """
-    Decoupled transactional email notification service.
+    Direct Gmail transactional email notification service.
     Handles automated notifications for:
       1. Account creation (Welcome email with onboarding overview)
       2. Task creation (Task title, priority, due date, description)
       3. Task completion (Turnaround time, overdue/on-time analytics, metrics)
       4. Task deletion (Audit notice with task snapshot and deleter info)
       5. Task assignment (Delegate alerts)
-    Isolates email delivery so transient network or sandbox restrictions never block database operations.
-    Supports Resend API (HTML + Plaintext), SMTP, and clean console logging fallback.
+    Isolates email delivery so transient network hiccups never block database operations.
+    Directly integrated with Gmail (SMTP / Webhook) without 3rd party email services.
     """
 
     @classmethod
@@ -41,41 +41,26 @@ class EmailService:
             pass
 
         if not provider:
-            provider = Config.EMAIL_PROVIDER or "none"
+            provider = Config.EMAIL_PROVIDER or "gmail"
 
         provider = str(provider).strip().lower()
 
-        # Explicit provider configurations take precedence
+        # Direct Google Gmail Webhook
         if provider in ("gmail_webhook", "google_webhook", "webhook"):
             return "gmail_webhook"
-        if provider == "resend":
-            return "resend"
-        if provider == "brevo":
-            return "brevo"
-        if provider == "smtp":
-            return "smtp"
-        if provider in ("gmail", "google"):
+
+        # Direct Gmail SMTP
+        if provider in ("smtp", "gmail", "google"):
             webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
             if webhook_url:
                 return "gmail_webhook"
             return "smtp"
 
-        # Fallback auto-detection if provider is "none" or unspecified
+        # Fallback auto-detection
         webhook_url = getattr(Config, "GMAIL_WEBHOOK_URL", "") or os.getenv("GMAIL_WEBHOOK_URL", "")
         if webhook_url:
             return "gmail_webhook"
 
-        # Auto-detect Brevo if API key is provided
-        brevo_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
-        if brevo_key:
-            return "brevo"
-
-        # Auto-detect Resend if API key is provided
-        resend_key = getattr(Config, "RESEND_API_KEY", "") or os.getenv("RESEND_API_KEY", "")
-        if resend_key:
-            return "resend"
-
-        # Auto-detect SMTP if user and password are provided
         smtp_user = getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")
         smtp_pass = getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")
         if smtp_user and smtp_pass:
@@ -269,7 +254,7 @@ class EmailService:
         )
 
     # --------------------------------------------------------------------------
-    # DISPATCH LOGIC (RESEND / SMTP / CONSOLE)
+    # DISPATCH LOGIC (GMAIL / SMTP / CONSOLE)
     # --------------------------------------------------------------------------
     @classmethod
     def _dispatch_email(
@@ -313,7 +298,7 @@ class EmailService:
         body_html: Optional[str] = None
     ) -> bool:
         """
-        Synchronous worker that connects to Resend or SMTP and sends the email.
+        Synchronous worker that connects directly to Gmail or SMTP and sends the email.
         Catches all network and credential exceptions to ensure operations never crash.
         """
         provider = cls.get_provider_name()
@@ -330,7 +315,7 @@ class EmailService:
         from_address = (
             app_config.get("EMAIL_FROM") or
             getattr(Config, "EMAIL_FROM", None) or
-            os.getenv("EMAIL_FROM", "Hairdrama Tasks <onboarding@resend.dev>")
+            os.getenv("EMAIL_FROM", "Hairdrama Tasks <drew34938@gmail.com>")
         )
 
         try:
@@ -376,133 +361,6 @@ class EmailService:
                     print(f"[EmailService Google Webhook Error] {error_msg}")
                     return False
 
-            # 2. Brevo (Sendinblue) REST API Integration (HTTPS port 443)
-            elif provider == "brevo":
-                api_key = getattr(Config, "BREVO_API_KEY", "") or os.getenv("BREVO_API_KEY", "")
-                if not api_key:
-                    logger.warning("EmailService: Brevo API key missing. Logging to console.")
-                    return cls._log_mock_email(recipient, subject, body_text)
-
-                sender_name = "Hairdrama Tasks"
-                sender_email = "drew34938@gmail.com"
-                if from_address:
-                    if "<" in from_address and ">" in from_address:
-                        sender_name = from_address.split("<")[0].strip() or "Hairdrama Tasks"
-                        sender_email = from_address.split("<")[1].split(">")[0].strip()
-                    elif "@" in from_address:
-                        sender_email = from_address.strip()
-
-                payload = {
-                    "sender": {"name": sender_name, "email": sender_email},
-                    "to": [{"email": recipient}],
-                    "subject": subject,
-                    "htmlContent": body_html or f"<p>{body_text}</p>",
-                    "textContent": body_text,
-                }
-
-                res = requests.post(
-                    "https://api.brevo.com/v3/smtp/email",
-                    headers={
-                        "api-key": api_key,
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                    timeout=10
-                )
-
-                if res.status_code in (200, 201):
-                    res_data = res.json() if res.content else {}
-                    msg_id = res_data.get("messageId", "ok")
-                    print(f"[EMAIL SENT via Brevo] ID: {msg_id} | To: {recipient} | Subject: {subject}")
-                    return True
-                else:
-                    error_msg = f"Brevo HTTP {res.status_code}: {res.text}"
-                    cls._last_error = error_msg
-                    print(f"[EmailService Brevo Error] {error_msg}")
-                    return False
-
-            # 2. Resend API Integration
-            elif provider == "resend":
-                api_key = Config.RESEND_API_KEY or os.getenv("RESEND_API_KEY", "")
-                if not api_key:
-                    logger.warning("EmailService: Resend API key missing. Logging to console.")
-                    return cls._log_mock_email(recipient, subject, body_text)
-
-                payload: Dict[str, Any] = {
-                    "from": from_address,
-                    "to": [recipient],
-                    "subject": subject,
-                    "text": body_text,
-                }
-                if body_html:
-                    payload["html"] = body_html
-
-                res = requests.post(
-                    "https://api.resend.com/emails",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                    timeout=10
-                )
-
-                if res.status_code in (200, 201):
-                    res_data = res.json() if res.content else {}
-                    email_id = res_data.get("id", "ok")
-                    logger.info(f"[EmailService Resend] ID: {email_id} | To: {recipient}")
-                    try:
-                        print(f"[EMAIL SENT via Resend] ID: {email_id} | To: {recipient} | Subject: {subject}")
-                    except UnicodeEncodeError:
-                        safe_subj = subject.encode("ascii", "replace").decode("ascii")
-                        print(f"[EMAIL SENT via Resend] ID: {email_id} | To: {recipient} | Subject: {safe_subj}")
-                    return True
-                elif res.status_code == 403 and "testing emails" in res.text:
-                    # Sandbox testing restriction notice: Resend only permits sending to account owner
-                    import re
-                    match = re.search(r"\(([^)]+@[^)]+)\)", res.text)
-                    authorized_owner = match.group(1) if match else os.getenv("RESEND_DEV_FALLBACK_TO", "adityadusharaa@gmail.com")
-
-                    if authorized_owner and recipient.strip().lower() != authorized_owner.strip().lower():
-                        print(f"[Resend Sandbox] Recipient '{recipient}' blocked by test domain. Forwarding to verified owner '{authorized_owner}'...")
-                        forward_subject = f"[Sandbox for {recipient}] {subject}"
-                        banner = (
-                            f"<div style='background-color:#fef3c7;border:1px solid #f59e0b;padding:14px 18px;margin-bottom:20px;border-radius:10px;font-size:13px;color:#92400e;line-height:1.5;'>"
-                            f"⚠️ <strong>Resend Sandbox Notice:</strong> This notification was intended for <strong>{recipient}</strong>. "
-                            f"Because <code>onboarding@resend.dev</code> is active, Resend requires domain verification to deliver to external addresses. "
-                            f"It was delivered to your registered email (<code>{authorized_owner}</code>) for development preview.<br>"
-                            f"<span style='font-size:11px;color:#b45309;'>To deliver directly to {recipient}, verify your domain at <a href='https://resend.com/domains' style='color:#b45309;font-weight:700;'>resend.com/domains</a>.</span>"
-                            f"</div>"
-                        )
-                        forward_html = banner + (body_html or f"<p>{body_text}</p>")
-                        forward_text = f"[Sandbox Notice: Originally destined for {recipient}]\n\n{body_text}"
-
-                        retry_res = requests.post(
-                            "https://api.resend.com/emails",
-                            headers={
-                                "Authorization": f"Bearer {api_key}",
-                                "Content-Type": "application/json",
-                            },
-                            json={
-                                "from": from_address,
-                                "to": [authorized_owner],
-                                "subject": forward_subject,
-                                "text": forward_text,
-                                "html": forward_html
-                            },
-                            timeout=10
-                        )
-                        if retry_res.status_code in (200, 201):
-                            retry_data = retry_res.json() if retry_res.content else {}
-                            print(f"[EMAIL SENT via Sandbox Forward] ID: {retry_data.get('id')} | Intended for: {recipient} -> Delivered to: {authorized_owner}")
-                            return True
-
-                    print(f"[Resend Sandbox Restriction] Delivery restricted to verified owner account. Notice: {res.text}")
-                    return cls._log_mock_email(recipient, subject, body_text)
-                else:
-                    logger.warning(f"EmailService Resend response ({res.status_code}): {res.text}")
-                    return cls._log_mock_email(recipient, subject, body_text)
-
             # 2. SMTP / Gmail Integration
             elif provider in ("smtp", "gmail"):
                 host = getattr(Config, "SMTP_HOST", "smtp.gmail.com") or os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -513,7 +371,7 @@ class EmailService:
                 user = (getattr(Config, "SMTP_USER", "") or os.getenv("SMTP_USER", "")).strip()
                 raw_password = (getattr(Config, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")).strip()
                 password = raw_password.replace(" ", "")
-                from_email = from_address if (from_address and "onboarding@resend.dev" not in from_address) else f"Hairdrama Tasks <{user}>"
+                from_email = from_address if from_address else f"Hairdrama Tasks <{user}>"
 
                 if not user or not password:
                     logger.warning("EmailService: Gmail/SMTP credentials not provided in env. Logging to console.")

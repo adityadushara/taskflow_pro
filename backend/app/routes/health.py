@@ -16,11 +16,11 @@ def health_check():
             "email": {
                 "provider": provider,
                 "configured": bool(
-                    (provider == "smtp" and Config.SMTP_USER and Config.SMTP_PASSWORD) or
-                    (provider == "resend" and Config.RESEND_API_KEY)
+                    (provider in ("smtp", "gmail") and Config.SMTP_USER and Config.SMTP_PASSWORD) or
+                    (provider == "gmail_webhook" and Config.GMAIL_WEBHOOK_URL)
                 ),
-                "smtp_host": Config.SMTP_HOST if provider == "smtp" else None,
-                "smtp_user": masked_user if provider == "smtp" else None,
+                "smtp_host": Config.SMTP_HOST if provider in ("smtp", "gmail") else None,
+                "smtp_user": masked_user if provider in ("smtp", "gmail") else None,
             }
         }), 200
 
@@ -39,12 +39,10 @@ def health_email():
         "provider": provider,
         "configured": bool(
             (provider == "gmail_webhook" and Config.GMAIL_WEBHOOK_URL) or
-            (provider == "brevo" and Config.BREVO_API_KEY) or
-            (provider == "resend" and Config.RESEND_API_KEY) or
-            (provider == "smtp" and Config.SMTP_USER and Config.SMTP_PASSWORD)
+            (provider in ("smtp", "gmail") and Config.SMTP_USER and Config.SMTP_PASSWORD)
         ),
-        "smtp_host": Config.SMTP_HOST if provider == "smtp" else None,
-        "smtp_user": masked_user if provider == "smtp" else None,
+        "smtp_host": Config.SMTP_HOST if provider in ("smtp", "gmail") else None,
+        "smtp_user": masked_user if provider in ("smtp", "gmail") else None,
     }), 200
 
 @health_bp.route("/health/test-send", methods=["GET", "POST"])

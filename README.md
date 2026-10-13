@@ -55,7 +55,7 @@ graph TD
 | **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Lucide React, `@supabase/supabase-js`, `@supabase/ssr` |
 | **Backend** | Python 3.12, Flask 3.1, Flask-CORS, Gunicorn, `supabase-py`, `gotrue`, `python-dotenv`, Pytest |
 | **Database & Auth** | Supabase PostgreSQL, Row Level Security (RLS), Google OAuth via Supabase Auth |
-| **Email Architecture** | Provider-agnostic abstraction (`EmailService`) with support for Resend, Gmail API, or Mock mode |
+| **Email Architecture** | Direct Gmail Integration (`EmailService` via Gmail SMTP / Google Webhook) |
 | **Deployment** | Vercel (Frontend), Render / Railway (Backend), Supabase (Database & Auth) |
 
 ---
@@ -385,11 +385,11 @@ Task Action (Created / Assigned / Completed)
          ↓
     EmailService
          ↓
-  Provider Dispatcher (Mock / Resend / Gmail API)
+  Direct Gmail Dispatcher (Gmail SMTP / Google Webhook / Mock)
 ```
 - **Clean Separation**: Neither route handlers nor database queries touch email APIs directly.
 - **Failure Isolation**: An email provider failure or rate limit **never** crashes or rolls back task creation or completion.
-- **Configuration**: Managed through `EMAIL_PROVIDER=resend|gmail|none`.
+- **Configuration**: Managed through `EMAIL_PROVIDER=gmail|gmail_webhook|none`.
 
 ---
 

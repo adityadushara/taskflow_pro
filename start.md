@@ -1,6 +1,6 @@
 # 🚀 Getting Started with Hairdrama Task Management App
 
-This guide walks you through setting up and running the entire full-stack application, including the **Flask Backend (BE)**, **Next.js Frontend (FE)**, **Supabase Database & Auth**, and **Resend Transactional Email Services**.
+This guide walks you through setting up and running the entire full-stack application, including the **Flask Backend (BE)**, **Next.js Frontend (FE)**, **Supabase Database & Auth**, and **Direct Gmail Transactional Email Integration**.
 
 ---
 
@@ -68,10 +68,14 @@ FRONTEND_URL=http://localhost:3000
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# Resend Transactional Email Settings
-EMAIL_PROVIDER=resend
-RESEND_API_KEY=your_resend_api_key_placeholder
-EMAIL_FROM=Hairdrama Tasks <onboarding@resend.dev>
+# Direct Gmail Transactional Email Settings
+EMAIL_PROVIDER=gmail_webhook # or 'gmail' for direct SMTP
+GMAIL_WEBHOOK_URL=your_google_mail_webhook_url
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_16_character_app_password
+EMAIL_FROM=Hairdrama Tasks <your_email@gmail.com>
 ```
 
 ### 5. Start the Backend Server
@@ -136,17 +140,15 @@ Open your browser and navigate to:
 
 ---
 
-## 📧 Email Notification Features (Resend or Gmail Directly)
+## 📧 Email Notification Features (Direct Gmail Integration)
 
-The application automatically sends styled transactional HTML emails:
+The application automatically sends styled transactional HTML emails directly from your Gmail account:
 1. **Account Creation**: Welcome email with feature highlights when a user joins or is provisioned.
 2. **Task Created**: Instant notification with task title, priority badge, due date, and description.
 3. **Task Completed**: Includes comprehensive **Turnaround Time** (e.g. `2 days, 4 hours`) and an **On-Time vs Overdue** performance scorecard.
 4. **Task Deleted**: Audit confirmation with deleted task snapshot and deleter identity.
 
-### Option 1: Use Gmail Directly (No Custom Domain Required)
-If you don't have a domain for Resend, you can send emails directly through **Gmail SMTP** to any email address in the world:
-
+### Direct Gmail Setup (App Password):
 1. Enable **2-Step Verification** on your Google Account: [myaccount.google.com/security](https://myaccount.google.com/security).
 2. Go to **App Passwords**: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
 3. Create an app password named `Task Manager` and copy the 16-character code (e.g. `abcd efgh ijkl mnop`).
@@ -159,17 +161,13 @@ If you don't have a domain for Resend, you can send emails directly through **Gm
    SMTP_PASSWORD=your_16_character_app_password
    EMAIL_FROM=Hairdrama Tasks <your_email@gmail.com>
    ```
-5. Restart your backend (`python run.py`). Emails will now be sent directly from your Gmail account to any recipient!
-
-### Option 2: Use Resend (Requires Domain for External Recipients)
-- With `onboarding@resend.dev`, Resend sends only to your verified account address (`adityadusharaa@gmail.com`), with automatic sandbox forwarding for other addresses.
-- To send to any recipient via Resend, verify a domain at [resend.com/domains](https://resend.com/domains).
+5. Restart your backend (`python run.py`). Emails will now be sent directly from your Gmail account to any recipient without any 3rd-party software!
 
 ---
 
 ## 🧪 Running Automated Backend Tests
 
-To run the complete test suite (29 tests verifying authentication, authorization, task lifecycle, and Resend email pipelines):
+To run the complete test suite (verifying authentication, authorization, task lifecycle, and email pipelines):
 
 ```bash
 cd "d:\projects\TASK MANAGEMENT APP\backend"
